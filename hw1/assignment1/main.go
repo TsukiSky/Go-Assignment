@@ -1,6 +1,7 @@
 package main
 
 import (
+	"homework/hw1/assignment1/lamportclock"
 	"homework/hw1/assignment1/vectorclock"
 )
 
@@ -14,32 +15,43 @@ import (
 // 3. Use Vector clock to redo the assignment. Implement the detection of causality violation and print any such detected causality violation.
 //
 
+type Algorithm int
+
+const (
+	LAMPORT_CLOCK Algorithm = iota
+	VECTOR_CLOCK
+)
+
 const (
 	numOfClients = 10
 	timeInterval = 1 // seconds
+	algorithm    = VECTOR_CLOCK
 )
 
 func main() {
-	//server := lamportclock.NewServer()
-	//server.Initialize()
-	//
-	//for i := 0; i < numOfClients; i++ {
-	//	client := lamportclock.NewClient(i, server)
-	//	server.Register(client)
-	//}
-	//
-	//for _, client := range server.GetClients() {
-	//	client.Activate(timeInterval)
-	//}
-
-	server := vectorclock.NewServer()
-	server.Initialize()
-	for i := 0; i < numOfClients; i++ {
-		client := vectorclock.NewClient(i, server)
-		server.Register(client)
-	}
-	for _, client := range server.GetClients() {
-		client.Activate(timeInterval)
+	switch algorithm {
+	case LAMPORT_CLOCK:
+		// lamport clock implementation
+		server := lamportclock.NewServer()
+		server.Initialize()
+		for i := 0; i < numOfClients; i++ {
+			client := lamportclock.NewClient(i, server)
+			server.Register(client)
+		}
+		for _, client := range server.GetClients() {
+			client.Activate(timeInterval)
+		}
+	case VECTOR_CLOCK:
+		// vector clock implementation
+		server := vectorclock.NewServer()
+		server.Initialize()
+		for i := 0; i < numOfClients; i++ {
+			client := vectorclock.NewClient(i, server)
+			server.Register(client)
+		}
+		for _, client := range server.GetClients() {
+			client.Activate(timeInterval)
+		}
 	}
 	select {}
 }
