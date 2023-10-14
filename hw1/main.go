@@ -34,6 +34,5 @@ func main() {
 		client.Activate(timeInterval)
 	}
 
-	for {
-	}
+	select {}
 }

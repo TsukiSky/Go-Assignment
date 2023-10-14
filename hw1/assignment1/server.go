@@ -8,12 +8,14 @@ import (
 type Server struct {
 	clients []*Client
 	channel chan Message
+	clock   int
 }
 
 func NewServer() *Server {
 	return &Server{
 		clients: make([]*Client, 0),
 		channel: make(chan Message),
+		clock:   0,
 	}
 }
 
@@ -42,23 +44,26 @@ func (s *Server) Broadcast(msg Message) {
 }
 
 func (s *Server) Listen() {
-	fmt.Printf("[Server] Server starts listen\n")
+	fmt.Printf("[Server Activate] -- Clock %d -- Server starts listenning\n", s.clock)
 	for {
 		select {
 		case msg := <-s.channel:
+			s.compareAndIncrementClock(msg.clock)
+			fmt.Printf("[Server Receive] -- Clock %d -- message from client %d is received\n", s.clock, msg.senderId)
 			s.handleMsg(msg)
 		}
 	}
 }
 
 func (s *Server) handleMsg(msg Message) {
+	s.incrementClock()
 	if flipCoin() {
 		// broadcast msg
-		fmt.Printf("[Broadcast] message from client %d is broadcast\n", msg.senderId)
+		fmt.Printf("[Server Broadcast] -- Clock %d -- message from client %d is broadcast\n", s.clock, msg.senderId)
 		s.Broadcast(msg)
 	} else {
 		// discard msg
-		fmt.Printf("[Discard] message from client %d is discarded\n", msg.senderId)
+		fmt.Printf("[Server Discard] -- Clock %d -- message from client %d is discarded\n", s.clock, msg.senderId)
 	}
 	return
 }
@@ -68,4 +73,18 @@ func flipCoin() bool {
 		return true
 	}
 	return false
+}
+
+// incrementClock increases the clock by 1
+func (s *Server) incrementClock() {
+	s.clock += 1
+}
+
+// compareAndIncrementClock compares the local clock with the incomingClock, chooses the larger clock and increases it by 1
+func (s *Server) compareAndIncrementClock(incomingClock int) {
+	if s.clock >= incomingClock {
+		s.clock += 1
+	} else {
+		s.clock = incomingClock + 1
+	}
 }
