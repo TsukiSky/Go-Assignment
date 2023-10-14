@@ -1,7 +1,7 @@
 package main
 
 import (
-	"homework/hw1/assignment1"
+	"homework/hw1/assignment1/vectorclock"
 )
 
 // Consider some client-server architecture as follows.
@@ -15,24 +15,31 @@ import (
 //
 
 const (
-	numOfClients = 5
-	timeInterval = 2 // seconds
+	numOfClients = 10
+	timeInterval = 1 // seconds
 )
 
-//var wg sync.WaitGroup
-
 func main() {
-	server := assignment1.NewServer()
-	server.Initialize()
+	//server := lamportclock.NewServer()
+	//server.Initialize()
+	//
+	//for i := 0; i < numOfClients; i++ {
+	//	client := lamportclock.NewClient(i, server)
+	//	server.Register(client)
+	//}
+	//
+	//for _, client := range server.GetClients() {
+	//	client.Activate(timeInterval)
+	//}
 
+	server := vectorclock.NewServer()
+	server.Initialize()
 	for i := 0; i < numOfClients; i++ {
-		client := assignment1.NewClient(i, server)
+		client := vectorclock.NewClient(i, server)
 		server.Register(client)
 	}
-
 	for _, client := range server.GetClients() {
 		client.Activate(timeInterval)
 	}
-
 	select {}
 }

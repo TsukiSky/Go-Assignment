@@ -1,4 +1,4 @@
-package assignment1
+package lamportclock
 
 type Message struct {
 	senderId int
