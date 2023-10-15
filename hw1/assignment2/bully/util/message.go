@@ -3,8 +3,8 @@ package util
 import "homework/hw1/assignment2/bully"
 
 type GenericContent struct {
-	senderId   int
-	receiverId int
+	SenderId   int
+	ReceiverId int
 }
 
 type MessageType int
@@ -15,12 +15,12 @@ const (
 	ELE_REQ
 	ELE_REP
 	ANC_REQ
-	ANC_REP
+	//ANC_REP
 )
 
 type Message interface {
 	GetContent() GenericContent
-	GetType() MessageType
+	GetMessageType() MessageType
 }
 
 // SynReqMessage implementation
@@ -42,8 +42,8 @@ func NewSynRequestMsg(sender int, receiver int) *SynReqMessage {
 	return &SynReqMessage{
 		messageType: SYN_REQ,
 		content: GenericContent{
-			senderId:   sender,
-			receiverId: receiver,
+			SenderId:   sender,
+			ReceiverId: receiver,
 		},
 	}
 }
@@ -67,8 +67,8 @@ func NewSynReplyMsg(sender int, receiver int, synSuccess bool) *SynRepMessage {
 	return &SynRepMessage{
 		messageType: SYN_REP,
 		content: GenericContent{
-			senderId:   sender,
-			receiverId: receiver,
+			SenderId:   sender,
+			ReceiverId: receiver,
 		},
 		synSuccess: synSuccess,
 	}
@@ -92,8 +92,8 @@ func NewElectReqMsg(sender int, receiver int) *ElectReqMessage {
 	return &ElectReqMessage{
 		messageType: ELE_REQ,
 		content: GenericContent{
-			senderId:   sender,
-			receiverId: receiver,
+			SenderId:   sender,
+			ReceiverId: receiver,
 		},
 	}
 }
@@ -117,59 +117,64 @@ func NewElectRepMsg(sender int, receiver int, agree bool) *ElectRepMessage {
 	return &ElectRepMessage{
 		messageType: ELE_REP,
 		content: GenericContent{
-			senderId:   sender,
-			receiverId: receiver,
+			SenderId:   sender,
+			ReceiverId: receiver,
 		},
 		agree: agree,
 	}
 }
 
-// AncReqMessage implementation
-type AncReqMessage struct {
+func (m *ElectRepMessage) IsAgree() bool {
+	return m.agree
+}
+
+// AncMessage implementation
+type AncMessage struct {
 	messageType MessageType
 	content     GenericContent
 }
 
-func (m *AncReqMessage) GetContent() GenericContent {
+func (m *AncMessage) GetContent() GenericContent {
 	return m.content
 }
 
-func (m *AncReqMessage) GetMessageType() MessageType {
+func (m *AncMessage) GetMessageType() MessageType {
 	return m.messageType
 }
 
-func NewAncReqMsg(sender int, receiver int) *AncReqMessage {
-	return &AncReqMessage{
+func NewAncMsg(sender int, receiver int) *AncMessage {
+	return &AncMessage{
 		messageType: ANC_REQ,
 		content: GenericContent{
-			senderId:   sender,
-			receiverId: receiver,
+			SenderId:   sender,
+			ReceiverId: receiver,
 		},
 	}
 }
 
-// AncRepMessage implementation
-type AncRepMessage struct {
-	messageType MessageType
-	content     GenericContent
-	agree       bool
-}
-
-func (m *AncRepMessage) GetContent() GenericContent {
-	return m.content
-}
-
-func (m *AncRepMessage) GetMessageType() MessageType {
-	return m.messageType
-}
-
-func NewAncRepMsg(sender int, receiver int, agree bool) *AncRepMessage {
-	return &AncRepMessage{
-		messageType: ANC_REP,
-		content: GenericContent{
-			senderId:   sender,
-			receiverId: receiver,
-		},
-		agree: agree,
-	}
-}
+//
+//// AncRepMessage implementation
+//type AncRepMessage struct {
+//	messageType MessageType
+//	content     GenericContent
+//	agree       bool
+//}
+//
+//func (m *AncRepMessage) GetContent() GenericContent {
+//	return m.content
+//}
+//
+//func (m *AncRepMessage) GetMessageType() MessageType {
+//	return m.messageType
+//}
+//
+//func NewAncRepMsg(sender int, receiver int, agree bool) *AncRepMessage {
+//	return &AncRepMessage{
+//		messageType: ANC_REP,
+//		content: GenericContent{
+//			SenderId:   sender,
+//			ReceiverId: receiver,
+//		},
+//		agree: agree,
+//	}
+//}
