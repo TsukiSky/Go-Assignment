@@ -16,6 +16,8 @@ const (
 	ELE_REP
 	ANC_REQ
 	//ANC_REP
+	HBT_REQ
+	HBT_REP
 )
 
 type Message interface {
@@ -152,29 +154,71 @@ func NewAncMsg(sender int, receiver int) *AncMessage {
 	}
 }
 
-//
-//// AncRepMessage implementation
-//type AncRepMessage struct {
-//	messageType MessageType
-//	content     GenericContent
-//	agree       bool
-//}
-//
-//func (m *AncRepMessage) GetContent() GenericContent {
-//	return m.content
-//}
-//
-//func (m *AncRepMessage) GetMessageType() MessageType {
-//	return m.messageType
-//}
-//
-//func NewAncRepMsg(sender int, receiver int, agree bool) *AncRepMessage {
-//	return &AncRepMessage{
-//		messageType: ANC_REP,
-//		content: GenericContent{
-//			SenderId:   sender,
-//			ReceiverId: receiver,
-//		},
-//		agree: agree,
-//	}
-//}
+type Heartbeat interface {
+	GetBeater() int
+	GetAsker() int
+}
+
+// HeartbeatReq implementation
+type HeartbeatReq struct {
+	messageType MessageType
+	content     GenericContent
+}
+
+func (m *HeartbeatReq) GetContent() GenericContent {
+	return m.content
+}
+
+func (m *HeartbeatReq) GetMessageType() MessageType {
+	return m.messageType
+}
+
+func (m *HeartbeatReq) GetBeater() int {
+	return m.content.ReceiverId
+}
+
+func (m *HeartbeatReq) GetAsker() int {
+	return m.content.SenderId
+}
+
+func NewHeartbeatReq(sender int, receiver int) *HeartbeatReq {
+	return &HeartbeatReq{
+		messageType: HBT_REQ,
+		content: GenericContent{
+			SenderId:   sender,
+			ReceiverId: receiver,
+		},
+	}
+}
+
+// HeartbeatRep implementation
+type HeartbeatRep struct {
+	messageType MessageType
+	content     GenericContent
+}
+
+func (m *HeartbeatRep) GetContent() GenericContent {
+	return m.content
+}
+
+func (m *HeartbeatRep) GetMessageType() MessageType {
+	return m.messageType
+}
+
+func (m *HeartbeatRep) GetBeater() int {
+	return m.content.SenderId
+}
+
+func (m *HeartbeatRep) GetAsker() int {
+	return m.content.ReceiverId
+}
+
+func NewHeartbeatRep(sender int, receiver int) *HeartbeatRep {
+	return &HeartbeatRep{
+		messageType: HBT_REP,
+		content: GenericContent{
+			SenderId:   sender,
+			ReceiverId: receiver,
+		},
+	}
+}

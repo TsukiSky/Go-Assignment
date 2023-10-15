@@ -6,20 +6,21 @@ import (
 	"time"
 )
 
-type ServerType int
+type ServerStatus int
 
 const (
-	COORDINATOR ServerType = iota
+	COORDINATOR ServerStatus = iota
 	WORKER
 )
 
 type Server struct {
-	id         int
-	serverType ServerType
-	channel    chan util.Message
-	cluster    *Cluster
-	data       Data
-	election   Election
+	id               int
+	serverStatus     ServerStatus
+	msgChannel       chan util.Message
+	cluster          Cluster
+	data             Data
+	election         Election
+	heartbeatChannel chan util.Heartbeat
 }
 
 type ElectionStatus int
@@ -36,11 +37,16 @@ type Election struct {
 
 func NewServer(id int, data Data) *Server {
 	server := Server{
-		id:         id,
-		serverType: WORKER,
-		channel:    make(chan util.Message),
-		cluster:    nil,
-		data:       data,
+		id:           id,
+		serverStatus: WORKER,
+		msgChannel:   make(chan util.Message),
+		cluster: Cluster{
+			servers:     nil,
+			coordinator: nil,
+			size:        0,
+			index:       0,
+		},
+		data: data,
 		election: Election{
 			status:        STOP,
 			isCoordinator: false,
@@ -63,7 +69,7 @@ func (s *Server) handleMsg(msg util.Message) {
 		logger.Logger.Printf("Elect Request received")
 		// Reply No
 		sender := s.cluster.GetServerById(msg.GetContent().SenderId)
-		sender.channel <- util.NewElectRepMsg(s.id, sender.id, false)
+		sender.msgChannel <- util.NewElectRepMsg(s.id, sender.id, false)
 	case *util.ElectRepMessage:
 		// Elect Reply Message
 		logger.Logger.Printf("Elect Reply received")
@@ -83,14 +89,43 @@ func (s *Server) Listen() {
 	logger.Logger.Printf("[Server Activate] Server %d starts listening\n", s.id)
 	for {
 		select {
-		case msg := <-s.channel:
+		case msg := <-s.msgChannel:
 			s.handleMsg(msg)
 		}
 	}
 }
 
-func (s *Server) Initialize() {
+func (s *Server) Activate() {
 	go s.Listen()
+	go s.Heartbeat()
+}
+
+func (s *Server) Heartbeat() {
+	doubleChecked := false
+	heartbeatTimer := time.NewTimer(5 * time.Second)
+	for {
+		select {
+		case heartbeat := <-s.heartbeatChannel:
+			switch heartbeat := heartbeat.(type) {
+			case *util.HeartbeatReq:
+				// heartbeat request
+				reply := util.NewHeartbeatRep(s.id, heartbeat.GetAsker())
+				s.cluster.GetServerById(heartbeat.GetAsker()).heartbeatChannel <- reply
+			case *util.HeartbeatRep:
+				heartbeatTimer.Reset(5 * time.Second)
+				doubleChecked = false
+			}
+		case <-heartbeatTimer.C:
+			if !doubleChecked {
+				// coordinator might be down
+				s.cluster.GetCoordinator().heartbeatChannel <- util.NewHeartbeatReq(s.id, s.cluster.GetCoordinator().id)
+				doubleChecked = true
+			} else {
+				// coordinator is down
+				go s.Elect(5)
+			}
+		}
+	}
 }
 
 func (s *Server) Elect(timeOut int) {
@@ -99,7 +134,7 @@ func (s *Server) Elect(timeOut int) {
 	s.election.isCoordinator = true
 	for _, server := range s.cluster.GetAllServersLargerThanId(s.id) {
 		msg := util.NewElectReqMsg(s.id, server.id)
-		server.channel <- msg
+		server.msgChannel <- msg
 	}
 
 	// timeout
@@ -113,7 +148,8 @@ func (s *Server) Elect(timeOut int) {
 func (s *Server) announce() {
 	for _, server := range s.cluster.GetAllServers() {
 		msg := util.NewAncMsg(s.id, server.id)
-		server.channel <- msg
+		server.msgChannel <- msg
 	}
 	s.election.status = STOP
+	s.serverStatus = COORDINATOR
 }
