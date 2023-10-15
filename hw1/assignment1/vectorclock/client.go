@@ -54,7 +54,7 @@ func (c *Client) Listen() {
 // sendMsg sends a message to the server
 func (c *Client) sendMsg(msg Message) {
 	logger.Logger.Printf("[Client %2d] -- Clock %v -- send message to server\n", msg.senderId, msg.vectorClock)
-	c.server.channel <- msg
+	c.server.channels[c.id-1] <- msg
 }
 
 // SendMsgWithInterval sends periodical messages to the server
@@ -63,7 +63,9 @@ func (c *Client) SendMsgWithInterval(second int) {
 		time.Sleep(time.Duration(second) * time.Second)
 		c.mu.Lock()
 		c.incrementClock()
-		msg := Message{senderId: c.id, vectorClock: c.vectorClock}
+		clock := make([]int, len(c.vectorClock))
+		copy(clock, c.vectorClock)
+		msg := Message{senderId: c.id, vectorClock: clock}
 		c.mu.Unlock()
 		c.sendMsg(msg)
 	}

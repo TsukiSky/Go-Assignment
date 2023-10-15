@@ -44,11 +44,11 @@ func main() {
 	case VECTOR_CLOCK:
 		// vector clock implementation
 		server := vectorclock.NewServer()
-		server.Initialize()
 		for i := 0; i < numOfClients; i++ {
 			client := vectorclock.NewClient(i, server)
 			server.Register(client)
 		}
+		server.Activate()
 		for _, client := range server.GetClients() {
 			client.Activate(timeInterval)
 		}
