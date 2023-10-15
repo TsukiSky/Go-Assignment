@@ -14,13 +14,15 @@ const (
 )
 
 type Server struct {
-	id               int
-	serverStatus     ServerStatus
-	msgChannel       chan util.Message
-	cluster          Cluster
-	data             Data
-	election         Election
-	heartbeatChannel chan util.Heartbeat
+	id                 int
+	serverStatus       ServerStatus
+	msgChannel         chan util.Message
+	cluster            Cluster
+	data               Data
+	election           Election
+	heartbeatChannel   chan util.Heartbeat
+	heartbeatFrequency int
+	electionTimeout    int
 }
 
 type ElectionStatus int
@@ -35,7 +37,7 @@ type Election struct {
 	isCoordinator bool
 }
 
-func NewServer(id int, data Data) *Server {
+func NewServer(id int, data Data, heartbeatFrequency int, electionTimeout int) *Server {
 	server := Server{
 		id:           id,
 		serverStatus: WORKER,
@@ -44,13 +46,14 @@ func NewServer(id int, data Data) *Server {
 			servers:     nil,
 			coordinator: nil,
 			size:        0,
-			index:       0,
 		},
 		data: data,
 		election: Election{
 			status:        STOP,
 			isCoordinator: false,
 		},
+		heartbeatFrequency: heartbeatFrequency,
+		electionTimeout:    electionTimeout,
 	}
 	return &server
 }
@@ -102,7 +105,7 @@ func (s *Server) Activate() {
 
 func (s *Server) Heartbeat() {
 	doubleChecked := false
-	heartbeatTimer := time.NewTimer(5 * time.Second)
+	heartbeatTimer := time.NewTimer(time.Duration(s.heartbeatFrequency) * time.Second)
 	for {
 		select {
 		case heartbeat := <-s.heartbeatChannel:
@@ -112,7 +115,7 @@ func (s *Server) Heartbeat() {
 				reply := util.NewHeartbeatRep(s.id, heartbeat.GetAsker())
 				s.cluster.GetServerById(heartbeat.GetAsker()).heartbeatChannel <- reply
 			case *util.HeartbeatRep:
-				heartbeatTimer.Reset(5 * time.Second)
+				heartbeatTimer.Reset(time.Duration(s.heartbeatFrequency) * time.Second)
 				doubleChecked = false
 			}
 		case <-heartbeatTimer.C:
@@ -122,7 +125,7 @@ func (s *Server) Heartbeat() {
 				doubleChecked = true
 			} else {
 				// coordinator is down
-				go s.Elect(5)
+				go s.Elect(s.electionTimeout)
 			}
 		}
 	}
@@ -152,4 +155,8 @@ func (s *Server) announce() {
 	}
 	s.election.status = STOP
 	s.serverStatus = COORDINATOR
+}
+
+func (s *Server) SetCluster(cluster Cluster) {
+	s.cluster = cluster
 }

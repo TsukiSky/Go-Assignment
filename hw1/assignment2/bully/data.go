@@ -15,15 +15,13 @@ type Cluster struct {
 	servers     []*Server
 	coordinator *Server
 	size        int
-	index       int
 }
 
-func NewCluster() *Cluster {
-	return &Cluster{
-		servers:     make([]*Server, 0),
+func NewCluster(servers []*Server) Cluster {
+	return Cluster{
+		servers:     servers,
 		coordinator: nil,
-		size:        0,
-		index:       0,
+		size:        len(servers),
 	}
 }
 
