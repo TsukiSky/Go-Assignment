@@ -1,8 +1,7 @@
 package bully
 
 import (
-	"homework/hw1/assignment1/logger"
-	"homework/hw1/assignment2/bully/util"
+	"fmt"
 	"time"
 )
 
@@ -16,11 +15,11 @@ const (
 type Server struct {
 	id                 int
 	serverStatus       ServerStatus
-	msgChannel         chan util.Message
+	msgChannel         chan Message
 	cluster            Cluster
 	data               Data
 	election           Election
-	heartbeatChannel   chan util.Heartbeat
+	heartbeatChannel   chan Heartbeat
 	heartbeatFrequency int
 	electionTimeout    int
 }
@@ -41,7 +40,7 @@ func NewServer(id int, data Data, heartbeatFrequency int, electionTimeout int) *
 	server := Server{
 		id:           id,
 		serverStatus: WORKER,
-		msgChannel:   make(chan util.Message),
+		msgChannel:   make(chan Message),
 		cluster: Cluster{
 			servers:     nil,
 			coordinator: nil,
@@ -58,38 +57,42 @@ func NewServer(id int, data Data, heartbeatFrequency int, electionTimeout int) *
 	return &server
 }
 
-func (s *Server) handleMsg(msg util.Message) {
+func (s *Server) handleMsg(msg Message) {
 	switch msg := msg.(type) {
-	case *util.SynReqMessage:
+	case *SynReqMessage:
 		msg.GetMessageType()
 		// Syn Request Message
-		logger.Logger.Printf("Syn Request received")
-	case *util.SynRepMessage:
+		fmt.Printf("%d Syn Request received\n", s.id)
+	case *SynRepMessage:
 		// Syn Reply Message
-		logger.Logger.Printf("Syn Reply received")
-	case *util.ElectReqMessage:
+		fmt.Printf("%d Syn Reply received\n", s.id)
+	case *ElectReqMessage:
 		// Elect Request Message
-		logger.Logger.Printf("Elect Request received")
+		fmt.Printf("%d Elect Request received\n", s.id)
 		// Reply No
 		sender := s.cluster.GetServerById(msg.GetContent().SenderId)
-		sender.msgChannel <- util.NewElectRepMsg(s.id, sender.id, false)
-	case *util.ElectRepMessage:
+		sender.msgChannel <- NewElectRepMsg(s.id, sender.id, false)
+		if s.election.status == STOP {
+			s.Elect(s.electionTimeout)
+		}
+	case *ElectRepMessage:
 		// Elect Reply Message
-		logger.Logger.Printf("Elect Reply received")
+		fmt.Printf("%d Elect Reply received\n", s.id)
 		if !msg.IsAgree() {
 			s.election.isCoordinator = false
 		}
-	case *util.AncMessage:
+	case *AncMessage:
 		// Announcement Request Message
-		logger.Logger.Printf("Announcement Request received")
+		fmt.Printf("%d Announcement Request received\n", s.id)
 		s.election.status = STOP
 		s.election.isCoordinator = false
+		s.cluster.SetCoordinator(msg.content.SenderId)
+		fmt.Printf("%d Set coordinator to %d\n", s.id, s.cluster.coordinator.id)
 	}
-	return
 }
 
 func (s *Server) Listen() {
-	logger.Logger.Printf("[Server Activate] Server %d starts listening\n", s.id)
+	fmt.Printf("[Server Activate] Server %d starts listening\n", s.id)
 	for {
 		select {
 		case msg := <-s.msgChannel:
@@ -104,28 +107,29 @@ func (s *Server) Activate() {
 }
 
 func (s *Server) Heartbeat() {
-	doubleChecked := false
 	heartbeatTimer := time.NewTimer(time.Duration(s.heartbeatFrequency) * time.Second)
 	for {
 		select {
 		case heartbeat := <-s.heartbeatChannel:
 			switch heartbeat := heartbeat.(type) {
-			case *util.HeartbeatReq:
+			case *HeartbeatReq:
 				// heartbeat request
-				reply := util.NewHeartbeatRep(s.id, heartbeat.GetAsker())
+				fmt.Printf("%d heartbeat request from %d received\n", s.id, s.cluster.GetCoordinator().id)
+				reply := NewHeartbeatRep(s.id, heartbeat.GetAsker())
 				s.cluster.GetServerById(heartbeat.GetAsker()).heartbeatChannel <- reply
-			case *util.HeartbeatRep:
+			case *HeartbeatRep:
 				heartbeatTimer.Reset(time.Duration(s.heartbeatFrequency) * time.Second)
-				doubleChecked = false
 			}
 		case <-heartbeatTimer.C:
-			if !doubleChecked {
-				// coordinator might be down
-				s.cluster.GetCoordinator().heartbeatChannel <- util.NewHeartbeatReq(s.id, s.cluster.GetCoordinator().id)
-				doubleChecked = true
+			// coordinator might be down
+			if s.cluster.GetCoordinator() != nil && s.cluster.GetCoordinator().id != s.id {
+				fmt.Printf("%d heartbeat request sent to %d\n", s.id, s.cluster.GetCoordinator().id)
+				s.cluster.GetCoordinator().heartbeatChannel <- NewHeartbeatReq(s.id, s.cluster.GetCoordinator().id)
 			} else {
-				// coordinator is down
-				go s.Elect(s.electionTimeout)
+				// coordinator does not exist
+				if s.election.status == STOP {
+					go s.Elect(s.electionTimeout)
+				}
 			}
 		}
 	}
@@ -136,7 +140,7 @@ func (s *Server) Elect(timeOut int) {
 	s.election.status = RUNNING
 	s.election.isCoordinator = true
 	for _, server := range s.cluster.GetAllServersLargerThanId(s.id) {
-		msg := util.NewElectReqMsg(s.id, server.id)
+		msg := NewElectReqMsg(s.id, server.id)
 		server.msgChannel <- msg
 	}
 
@@ -150,7 +154,7 @@ func (s *Server) Elect(timeOut int) {
 
 func (s *Server) announce() {
 	for _, server := range s.cluster.GetAllServers() {
-		msg := util.NewAncMsg(s.id, server.id)
+		msg := NewAncMsg(s.id, server.id)
 		server.msgChannel <- msg
 	}
 	s.election.status = STOP

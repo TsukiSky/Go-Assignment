@@ -1,6 +1,4 @@
-package util
-
-import "homework/hw1/assignment2/bully"
+package bully
 
 type GenericContent struct {
 	SenderId   int
@@ -29,7 +27,7 @@ type Message interface {
 type SynReqMessage struct {
 	messageType MessageType
 	content     GenericContent
-	data        bully.Data
+	data        Data
 }
 
 func (m *SynReqMessage) GetContent() GenericContent {

@@ -74,3 +74,13 @@ func (c *Cluster) GetAllServersLargerThanId(id int) []*Server {
 func (c *Cluster) GetCoordinator() *Server {
 	return c.coordinator
 }
+
+func (c *Cluster) SetCoordinator(coordinatorId int) *Server {
+	for _, server := range c.servers {
+		if server.id == coordinatorId {
+			c.coordinator = server
+			return server
+		}
+	}
+	return nil
+}
