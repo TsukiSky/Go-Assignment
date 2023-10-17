@@ -15,8 +15,8 @@ import "homework/hw1/assignment2/bully"
 //     The objective is to have a consensus across all machines (simulated by GO routines)
 //     in terms of the newly elected coordinator.
 const (
-	numOfServers       = 2
-	heartbeatFrequency = 5 // seconds
+	numOfServers       = 5
+	heartbeatFrequency = 3 // seconds
 	electTimeout       = 5 // seconds
 )
 
