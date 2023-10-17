@@ -14,28 +14,27 @@ import "homework/hw1/assignment2/bully"
 //     4.2	You can assume a fixed timeout to simulate the behaviour of detecting a fault
 //     The objective is to have a consensus across all machines (simulated by GO routines)
 //     in terms of the newly elected coordinator.
+
 const (
-	numOfServers       = 5
-	heartbeatFrequency = 3 // seconds
-	electTimeout       = 5 // seconds
+	numOfServers       = 5 // number of servers in the cluster
+	heartbeatFrequency = 3 // intervals between heartbeat (seconds)
+	electTimeout       = 5 // intervals from request -> announce (seconds)
+	syncFrequency      = 8 // intervals of synchronization (seconds)
 )
 
 func main() {
 	servers := make([]*bully.Server, 0)
 	// create servers
 	for i := 0; i < numOfServers; i++ {
-		servers = append(servers, bully.NewServer(i, bully.Data{}, heartbeatFrequency, electTimeout))
+		servers = append(servers, bully.NewServer(i, bully.NewData(), heartbeatFrequency, electTimeout, syncFrequency))
 	}
-
 	// initialize servers
 	for _, server := range servers {
 		server.SetCluster(bully.NewCluster(servers))
 	}
-
 	// activate
 	for _, server := range servers {
 		server.Activate()
 	}
-
 	select {}
 }

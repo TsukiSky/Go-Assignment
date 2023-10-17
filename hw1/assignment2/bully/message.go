@@ -38,13 +38,14 @@ func (m *SynReqMessage) GetMessageType() MessageType {
 	return m.messageType
 }
 
-func NewSynRequestMsg(sender int, receiver int) *SynReqMessage {
+func NewSynRequestMsg(sender int, receiver int, data Data) *SynReqMessage {
 	return &SynReqMessage{
 		messageType: SYN_REQ,
 		content: GenericContent{
 			SenderId:   sender,
 			ReceiverId: receiver,
 		},
+		data: data,
 	}
 }
 

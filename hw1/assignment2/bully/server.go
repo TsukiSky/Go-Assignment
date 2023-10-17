@@ -2,6 +2,7 @@ package bully
 
 import (
 	"fmt"
+	"math/rand"
 	"time"
 )
 
@@ -15,13 +16,14 @@ const (
 type Server struct {
 	id                 int
 	serverStatus       ServerStatus
-	msgChannel         chan Message
 	cluster            Cluster
+	msgChannel         chan Message
+	heartbeatChannel   chan Heartbeat
 	data               Data
 	election           Election
-	heartbeatChannel   chan Heartbeat
 	heartbeatFrequency int
 	electionTimeout    int
+	syncFrequency      int
 }
 
 type ElectionStatus int
@@ -36,7 +38,7 @@ type Election struct {
 	isCoordinator bool
 }
 
-func NewServer(id int, data Data, heartbeatFrequency int, electionTimeout int) *Server {
+func NewServer(id int, data Data, heartbeatFrequency int, electionTimeout int, syncFrequency int) *Server {
 	server := Server{
 		id:           id,
 		serverStatus: WORKER,
@@ -53,6 +55,7 @@ func NewServer(id int, data Data, heartbeatFrequency int, electionTimeout int) *
 		},
 		heartbeatFrequency: heartbeatFrequency,
 		electionTimeout:    electionTimeout,
+		syncFrequency:      syncFrequency,
 		heartbeatChannel:   make(chan Heartbeat),
 	}
 	return &server
@@ -61,24 +64,23 @@ func NewServer(id int, data Data, heartbeatFrequency int, electionTimeout int) *
 func (s *Server) handleMsg(msg Message) {
 	switch msg := msg.(type) {
 	case *SynReqMessage:
-		msg.GetMessageType()
-		// Syn Request Message
-		fmt.Printf("[Server %d] Synchronization request from %d\n", s.id, msg.content.SenderId)
+		fmt.Printf("[Server %d] Synchronization request from %d, set localtime to %d\n", s.id, msg.content.SenderId, msg.data.localTime)
+		s.data = msg.data
 	case *SynRepMessage:
 		// Syn Reply Message
 		fmt.Printf("[Server %d] Synchronization reply from %d\n", s.id, msg.content.SenderId)
 	case *ElectReqMessage:
-		// Elect Request Message
+		// Election Request Message
 		fmt.Printf("[Server %d] Election request from %d\n", s.id, msg.content.SenderId)
 		// Reply No
 		sender := s.cluster.GetServerById(msg.GetContent().SenderId)
 		sender.msgChannel <- NewElectRepMsg(s.id, sender.id, false)
 		if s.election.status == STOP {
 			// start election
-			s.Elect(s.electionTimeout)
+			s.Election(s.electionTimeout)
 		}
 	case *ElectRepMessage:
-		// Elect Reply Message
+		// Election Reply Message
 		fmt.Printf("[Server %d] Election reply from %d\n", s.id, msg.content.SenderId)
 		if !msg.IsAgree() {
 			s.election.isCoordinator = false
@@ -107,6 +109,36 @@ func (s *Server) Listen() {
 func (s *Server) Activate() {
 	go s.Listen()
 	go s.Heartbeat()
+	go s.Work()
+}
+
+func (s *Server) Work() {
+	syncTimer := time.NewTimer(time.Duration(s.syncFrequency) * time.Second)
+	for {
+		if s.serverStatus == WORKER {
+			if rand.Float64() < 0.5 {
+				s.data.localTime += 1
+			} else {
+				s.data.localTime += 2
+			}
+		} else {
+			select {
+			case <-syncTimer.C:
+				currentData := s.data
+				fmt.Printf("[Server %d] Synchronize to value %d\n", s.id, s.data.localTime)
+				for _, server := range s.cluster.GetAllServersExceptId(s.id) {
+					server.msgChannel <- NewSynRequestMsg(s.id, server.id, currentData)
+				}
+				syncTimer.Reset(time.Duration(s.syncFrequency) * time.Second)
+			default:
+				if rand.Float64() < 0.5 {
+					s.data.localTime += 1
+				} else {
+					s.data.localTime += 2
+				}
+			}
+		}
+	}
 }
 
 func (s *Server) Heartbeat() {
@@ -135,13 +167,13 @@ func (s *Server) Heartbeat() {
 				} else {
 					// coordinator is down
 					if s.election.status == STOP {
-						go s.Elect(s.electionTimeout)
+						go s.Election(s.electionTimeout)
 					}
 				}
 			} else if s.serverStatus != COORDINATOR {
 				// coordinator is nil
 				if s.election.status == STOP {
-					go s.Elect(s.electionTimeout) // start election
+					go s.Election(s.electionTimeout) // start election
 				}
 			}
 			heartbeatTimer.Reset(time.Duration(s.heartbeatFrequency) * time.Second)
@@ -149,7 +181,7 @@ func (s *Server) Heartbeat() {
 	}
 }
 
-func (s *Server) Elect(timeOut int) {
+func (s *Server) Election(timeOut int) {
 	// every election starts with a self-voting
 	s.election.status = RUNNING
 	s.election.isCoordinator = true

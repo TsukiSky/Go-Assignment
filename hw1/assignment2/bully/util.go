@@ -3,12 +3,11 @@ package bully
 import "homework/hw1/assignment1/logger"
 
 type Data struct {
-	users []user
+	localTime int
 }
 
-type user struct {
-	id   int
-	name string
+func NewData() Data {
+	return Data{localTime: 0}
 }
 
 type Cluster struct {
@@ -52,7 +51,7 @@ func (c *Cluster) GetServerById(id int) *Server {
 }
 
 func (c *Cluster) GetAllServersExceptId(id int) []*Server {
-	returnServers := make([]*Server, len(c.servers)-1)
+	returnServers := make([]*Server, 0)
 	for _, server := range c.servers {
 		if server.id != id {
 			returnServers = append(returnServers, server)
