@@ -9,10 +9,17 @@
 * Introduction
 * Compilation and Execution
 * Assignment 1
-  * Client-server architecture
-  * Lamport's logical clock
-  * Vector clock
+  * Objects
+  * Implementation
+    * Lamport's logical clock
+    * Vector clock
 * Assignment 2
+  * Objects
+  * Implementation
+    * Message
+    * Server
+  * Simulation
+* Conclusion
 
 ## Introduction
 
@@ -20,31 +27,31 @@ This homework contains two assignments, each focusing on specific concepts in di
 
 The structure of this homework is:
 
-├─hw1
-|  ├─readme.md  
-|  ├─logger  
-|  |   └logger.go  
-|  ├─assignment2  
-|  |      ├─main.go  
-|  |      ├─doc  
-|  |      |  └fig1_message.jpg  
-|  |      ├─bully  
-|  |      |   ├─message.go  
-|  |      |   ├─server.go  
-|  |      |   └util.go  
-|  ├─assignment1  
-|  |      ├─main.go  
-|  |      ├─vectorclock  
-|  |      |      ├─client.go  
-|  |      |      ├─message.go  
-|  |      |      └server.go  
-|  |      ├─lamportclock  
-|  |      |      ├─client.go  
-|  |      |      ├─message.go  
-|  |      |      └server.go  
-|  |      ├─doc  
-|  |      |  ├─fig1_lamport_architecture.jpg  
-|  |      |  └fig2_vector_architecture.jpg  
+├─hw1  
+|&emsp;├─readme.md  
+|&emsp;├─logger  
+|&emsp;|&emsp;└logger.go  
+|&emsp;├─assignment2  
+|&emsp;|&emsp;├─main.go  
+|&emsp;|&emsp;├─doc  
+|&emsp;|&emsp;|&emsp;└fig1_message.jpg  
+|&emsp;|&emsp;├─bully  
+|&emsp;|&emsp;|&emsp;├─message.go  
+|&emsp;|&emsp;|&emsp;├─server.go  
+|&emsp;|&emsp;|&emsp;└util.go  
+|&emsp;├─assignment1  
+|&emsp;|&emsp;├─main.go  
+|&emsp;|&emsp;├─vectorclock  
+|&emsp;|&emsp;|&emsp;├─client.go  
+|&emsp;|&emsp;|&emsp;├─message.go  
+|&emsp;|&emsp;|&emsp;└server.go  
+|&emsp;|&emsp;├─lamportclock  
+|&emsp;|&emsp;|&emsp;├─client.go  
+|&emsp;|&emsp;|&emsp;├─message.go  
+|&emsp;|&emsp;|&emsp;└server.go  
+|&emsp;|&emsp;├─doc  
+|&emsp;|&emsp;|&emsp;├─fig1_lamport_architecture.jpg  
+|&emsp;|&emsp;|&emsp;└fig2_vector_architecture.jpg  
 
 ## Compilation and Execution
 
@@ -87,7 +94,7 @@ You can experiment with different parameter values to observe the simulation's b
 
 The architecture of Lamport Clock simulation is illustrated in Figure 1. The Server and Clients are simulated via GO routines. Note that in this implementation, Each of the server and clients has only one channel.
 
-![fig1_lamport_architecture](assignment1\doc\fig1_lamport_architecture.jpg)
+![fig1_lamport_architecture](.\assignment1\doc\fig1_lamport_architecture.jpg)
 
 <center style="font-size:14px; color:#C0C0C0">Figure 1: Lamport Clock Architecture</center>
 
@@ -139,7 +146,7 @@ assignment 1: 2023/10/18 15:13:50 [Client 3] -- Clock 8 -- receive server's broa
 
 The architecture of Vector Clock simulation is illustrated in Figure 2. The Server and Clients are simulated via GO routines. Note that in this implementation, the server will create a channel for each client.
 
-![fig2_vector_architecture](assignment1\doc\fig2_vector_architecture.jpg)
+![fig2_vector_architecture](.\assignment1\doc\fig2_vector_architecture.jpg)
 
 <center style="font-size:14px; color:#C0C0C0">Figure 2: Vector Clock Architecture</center>
 
@@ -259,7 +266,7 @@ This shows the causality violation detected by the server in vector clock algori
 
 Messages play an important role in communication among servers (GO routines). There are six distinct message types in this implementation, each serving specific purposes in the synchronization and coordination processes.
 
-![fig1_message](assignment2\doc\fig1_message.jpg)
+![fig1_message](.\assignment2\doc\fig1_message.jpg)
 
 <center style="font-size:14px; color:#C0C0C0">Figure 3: Message UML Diagram</center>
 
