@@ -94,7 +94,7 @@ You can experiment with different parameter values to observe the simulation's b
 
 The architecture of Lamport Clock simulation is illustrated in Figure 1. The Server and Clients are simulated via GO routines. Note that in this implementation, Each of the server and clients has only one channel.
 
-![fig1_lamport_architecture](.\assignment1\doc\fig1_lamport_architecture.jpg)
+![fig1_lamport_architecture](./assignment1/doc/fig1_lamport_architecture.jpg)
 
 <center style="font-size:14px; color:#C0C0C0">Figure 1: Lamport Clock Architecture</center>
 
@@ -146,7 +146,7 @@ assignment 1: 2023/10/18 15:13:50 [Client 3] -- Clock 8 -- receive server's broa
 
 The architecture of Vector Clock simulation is illustrated in Figure 2. The Server and Clients are simulated via GO routines. Note that in this implementation, the server will create a channel for each client.
 
-![fig2_vector_architecture](.\assignment1\doc\fig2_vector_architecture.jpg)
+![fig2_vector_architecture](./assignment1/doc/fig2_vector_architecture.jpg)
 
 <center style="font-size:14px; color:#C0C0C0">Figure 2: Vector Clock Architecture</center>
 
@@ -266,7 +266,7 @@ This shows the causality violation detected by the server in vector clock algori
 
 Messages play an important role in communication among servers (GO routines). There are six distinct message types in this implementation, each serving specific purposes in the synchronization and coordination processes.
 
-![fig1_message](.\assignment2\doc\fig1_message.jpg)
+![fig1_message](./assignment2/doc/fig1_message.jpg)
 
 <center style="font-size:14px; color:#C0C0C0">Figure 3: Message UML Diagram</center>
 
