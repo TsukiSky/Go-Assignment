@@ -1,6 +1,9 @@
 package main
 
-import "homework/hw1/assignment2/bully"
+import (
+	"homework/hw1/assignment2/bully"
+	"homework/hw1/logger"
+)
 
 // Use Bully algorithm to implement a working version of replica synchronization.
 // You may assume that
@@ -16,25 +19,90 @@ import "homework/hw1/assignment2/bully"
 //     in terms of the newly elected coordinator.
 
 const (
-	numOfServers       = 5 // number of servers in the cluster
-	heartbeatFrequency = 3 // intervals between heartbeat (seconds)
-	electTimeout       = 5 // intervals from request -> announce (seconds)
-	syncFrequency      = 8 // intervals of synchronization (seconds)
+	numOfServers       = 5  // number of servers in the cluster
+	heartbeatFrequency = 10 // intervals between heartbeat (seconds)
+	electionTimeout    = 8  // intervals from request -> announce (seconds)
+	replyTimeout       = 4
+	syncFrequency      = 10 // intervals of synchronization (seconds)
 )
 
 func main() {
+	logger.Init("assignment_2.log", "assignment 2: ")
 	servers := make([]*bully.Server, 0)
 	// create servers
 	for i := 0; i < numOfServers; i++ {
-		servers = append(servers, bully.NewServer(i, bully.NewData(), heartbeatFrequency, electTimeout, syncFrequency))
+		servers = append(servers, bully.NewServer(i, bully.NewData(), heartbeatFrequency, electionTimeout, replyTimeout, syncFrequency))
 	}
 	// initialize servers
 	for _, server := range servers {
 		server.SetCluster(bully.NewCluster(servers))
 	}
-	// activate
+
+	// 1. Normal simulation
 	for _, server := range servers {
 		server.Activate()
 	}
+
+	// 2.1 Simulate worst-case
+	// The worst-case is: the node with the smallest id start the election.
+	// Here, we will simulate it by activating server 1 after the first announcement.
+	// It means that server 1 has to join the cluster by emitting a new round of election.
+	//for index, server := range servers {
+	//	if index != 0 {
+	//		server.Activate()
+	//	}
+	//}
+	//
+	//for {
+	//	if servers[1].Cluster.GetCoordinator() != nil {
+	//		servers[0].Activate()
+	//		break
+	//	}
+	//}
+
+	// 2.2 Simulate best-case
+	// The best-case is: the node with the highest id start the election.
+	// Here, we will simulate it by activating the server with the highest id after the first announcement.
+	// It means that server highest_id has to join the cluster by emitting a new round of election.
+	//for index, server := range servers {
+	//	if index != len(servers)-1 {
+	//		server.Activate()
+	//	}
+	//}
+	//
+	//for {
+	//	if servers[0].Cluster.GetCoordinator() != nil {
+	//		servers[len(servers)-1].Activate()
+	//		break
+	//	}
+	//}
+
+	// 3.a Simulate newly elected coordinator fails while announcing that it has won election to all nodes
+	// This case could be well-handled by the heartbeat mechanism in this implementation.
+	// To simulate this, activate the servers by calling PleaseFailWhileAnnounce()
+	//for index, server := range servers {
+	//	if index < len(servers)-1 {
+	//		server.Activate()
+	//	} else {
+	//		server.PleaseFailWhileAnnounce()
+	//	}
+
+	// 3.b Simulate newly elected coordinator fails while election, the failed node is not the newly elected coordinator
+	// This case could be well-handled by the election timeout mechanism in this implementation.
+	// To simulate this, activate the servers by calling PleaseFailWhileElection()
+	//for index, server := range servers {
+	//	if index != 1 {
+	//		server.Activate()
+	//	} else {
+	//		server.PleaseFailWhileElection()
+	//	}
+	//}
+
+	// 4. Multiple GO routines start the election process simultaneously
+	// This is embedded in the system, Multiple GO routines starts the election process simultaneously in this implementation
+
+	// 5. An arbitrary node silently leaves the network
+	// This case could be well-handled by the election timeout mechanism in this implementation.
+	// It is explained, and almost the same as 3
 	select {}
 }

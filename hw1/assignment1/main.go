@@ -3,6 +3,7 @@ package main
 import (
 	"homework/hw1/assignment1/lamportclock"
 	"homework/hw1/assignment1/vectorclock"
+	"homework/hw1/logger"
 )
 
 // Consider some client-server architecture as follows.
@@ -29,6 +30,7 @@ const (
 )
 
 func main() {
+	logger.Init("assignment_1.log", "assignment 1: ")
 	switch algorithm {
 	case LAMPORT_CLOCK:
 		// lamport clock implementation

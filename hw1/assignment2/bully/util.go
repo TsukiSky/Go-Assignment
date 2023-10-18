@@ -1,6 +1,8 @@
 package bully
 
-import "homework/hw1/assignment1/logger"
+import (
+	"homework/hw1/logger"
+)
 
 type Data struct {
 	localTime int
@@ -24,11 +26,11 @@ func NewCluster(servers []*Server) Cluster {
 	}
 }
 
-// AddServer adds a server to this cluster
+// AddServer adds a server to this Cluster
 func (c *Cluster) AddServer(s *Server) {
 	for _, server := range c.servers {
 		if server == s {
-			logger.Logger.Printf("[WARNING] server %d has been added to the cluster", s.id)
+			logger.Logger.Printf("[WARNING] server %d has been added to the Cluster", s.id)
 			return
 		}
 	}

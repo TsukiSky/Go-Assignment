@@ -1,7 +1,7 @@
 package vectorclock
 
 import (
-	"homework/hw1/assignment1/logger"
+	"homework/hw1/logger"
 	"math/rand"
 	"sync"
 )

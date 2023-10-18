@@ -7,12 +7,12 @@ import (
 
 var Logger *log.Logger
 
-func init() {
+func Init(logFilename, logPrefix string) {
 	if Logger == nil {
-		logFile, err := os.Create("assignment_1.log")
+		logFile, err := os.Create(logFilename)
 		if err != nil {
 			log.Fatal("unable to create log file:", err)
 		}
-		Logger = log.New(logFile, "assignment 1: ", log.LstdFlags)
+		Logger = log.New(logFile, logPrefix, log.LstdFlags)
 	}
 }
