@@ -35,7 +35,7 @@ func (s *Server) GetClients() []*Client {
 
 // Register a client
 func (s *Server) Register(client *Client) {
-	client.id = len(s.clients) + 1
+	client.Id = len(s.clients) + 1
 	s.clients = append(s.clients, client)
 	s.vectorClock = append(s.vectorClock, 0)
 	s.channels = append(s.channels, make(chan Message))
@@ -48,7 +48,7 @@ func (s *Server) Register(client *Client) {
 // Broadcast a message to all clients except the sender
 func (s *Server) Broadcast(msg Message) {
 	for _, client := range s.clients {
-		if client.id != msg.senderId {
+		if client.Id != msg.senderId {
 			client.channel <- msg
 		}
 	}

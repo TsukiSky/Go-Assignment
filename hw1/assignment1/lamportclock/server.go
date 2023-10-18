@@ -1,7 +1,7 @@
 package lamportclock
 
 import (
-	"fmt"
+	"homework/hw1/assignment1/logger"
 	"math/rand"
 )
 
@@ -19,7 +19,7 @@ func NewServer() *Server {
 	}
 }
 
-func (s *Server) Initialize() {
+func (s *Server) Activate() {
 	go s.Listen()
 }
 
@@ -44,12 +44,12 @@ func (s *Server) Broadcast(msg Message) {
 }
 
 func (s *Server) Listen() {
-	fmt.Printf("[Server Activate] -- Clock %d -- Server starts listenning\n", s.clock)
+	logger.Logger.Printf("[ Server ] -- Clock %d -- Server starts listening\n", s.clock)
 	for {
 		select {
 		case msg := <-s.channel:
 			s.compareAndIncrementClock(msg.clock)
-			fmt.Printf("[Server Receive] -- Clock %d -- message from client %d is received\n", s.clock, msg.senderId)
+			logger.Logger.Printf("[ Server ] -- Clock %d -- receive message from client %d\n", s.clock, msg.senderId)
 			s.handleMsg(msg)
 		}
 	}
@@ -59,11 +59,15 @@ func (s *Server) handleMsg(msg Message) {
 	s.incrementClock()
 	if flipCoin() {
 		// broadcast msg
-		fmt.Printf("[Server Broadcast] -- Clock %d -- message from client %d is broadcast\n", s.clock, msg.senderId)
-		s.Broadcast(msg)
+		logger.Logger.Printf("[ Server ] -- Clock %d -- broadcast message from client %d\n", s.clock, msg.senderId)
+		broadcastMsg := Message{
+			senderId: msg.senderId,
+			clock:    s.clock,
+		}
+		s.Broadcast(broadcastMsg)
 	} else {
 		// discard msg
-		fmt.Printf("[Server Discard] -- Clock %d -- message from client %d is discarded\n", s.clock, msg.senderId)
+		logger.Logger.Printf("[ Server ] -- Clock %d -- discard message from client %d\n", s.clock, msg.senderId)
 	}
 	return
 }

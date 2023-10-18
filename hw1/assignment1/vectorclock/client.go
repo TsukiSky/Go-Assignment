@@ -7,7 +7,7 @@ import (
 )
 
 type Client struct {
-	id          int
+	Id          int
 	vectorClock []int
 	server      *Server
 	channel     chan Message
@@ -16,7 +16,7 @@ type Client struct {
 
 func NewClient(id int, server *Server) *Client {
 	return &Client{
-		id:          id,
+		Id:          id,
 		vectorClock: make([]int, 0),
 		server:      server,
 		channel:     make(chan Message),
@@ -24,9 +24,15 @@ func NewClient(id int, server *Server) *Client {
 }
 
 func (c *Client) Activate(msgInterval int) {
-	logger.Logger.Printf("[Client Activate] -- Clock %v -- client %2d starts listening and sends periodical messages\n", c.vectorClock, c.id)
+	logger.Logger.Printf("[Client Activate] -- Clock %v -- client %2d starts listening and sends periodical messages\n", c.vectorClock, c.Id)
 	go c.Listen()
 	go c.SendMsgWithInterval(msgInterval)
+}
+
+func (c *Client) MadlyActivate(msgInterval int) {
+	logger.Logger.Printf("[Mad Client Activate] -- Clock %v -- client %2d madly starts listening and sends periodical messages\n", c.vectorClock, c.Id)
+	go c.Listen()
+	go c.SendMadMsgWithInterval(msgInterval)
 }
 
 // Listen to messages sent from the server
@@ -42,10 +48,10 @@ func (c *Client) Listen() {
 					"\t\t\t\t\t\t\t-- Vector Clock on client %2d--%v\n"+
 					"\t\t\t\t\t\t\t-- Vector Clock from server --%v\n"+
 					"\t\t\t\t\t##############################################################################################################\n",
-					c.id, msg.senderId, c.id, c.vectorClock, msg.vectorClock)
+					c.Id, msg.senderId, c.Id, c.vectorClock, msg.vectorClock)
 			}
 			c.compareAndIncrementClock(msg.vectorClock)
-			logger.Logger.Printf("[Client %2d] -- Clock %v -- receive %2d's message\n", c.id, c.vectorClock, msg.senderId)
+			logger.Logger.Printf("[Client %2d] -- Clock %v -- receive %2d's message\n", c.Id, c.vectorClock, msg.senderId)
 			c.mu.Unlock()
 		}
 	}
@@ -54,7 +60,7 @@ func (c *Client) Listen() {
 // sendMsg sends a message to the server
 func (c *Client) sendMsg(msg Message) {
 	logger.Logger.Printf("[Client %2d] -- Clock %v -- send message to server\n", msg.senderId, msg.vectorClock)
-	c.server.channels[c.id-1] <- msg
+	c.server.channels[c.Id-1] <- msg
 }
 
 // SendMsgWithInterval sends periodical messages to the server
@@ -65,14 +71,36 @@ func (c *Client) SendMsgWithInterval(second int) {
 		c.incrementClock()
 		clock := make([]int, len(c.vectorClock))
 		copy(clock, c.vectorClock)
-		msg := Message{senderId: c.id, vectorClock: clock}
+		msg := Message{senderId: c.Id, vectorClock: clock}
 		c.mu.Unlock()
 		c.sendMsg(msg)
 	}
 }
 
+// SendMadMsgWithInterval sends malicious causality violated periodical messages to the server
+func (c *Client) SendMadMsgWithInterval(second int) {
+	for {
+		time.Sleep(time.Duration(second) * time.Second)
+		c.mu.Lock()
+		c.incrementClock()
+		clockSmall := make([]int, len(c.vectorClock))
+		copy(clockSmall, c.vectorClock)
+		msgSmall := Message{senderId: c.Id, vectorClock: clockSmall} // construct a message with a smaller vector clock
+
+		c.incrementClock()
+		clockLarge := make([]int, len(c.vectorClock))
+		copy(clockLarge, c.vectorClock)
+		msgLarge := Message{senderId: c.Id, vectorClock: clockLarge} // construct a message with a larger vector clock
+		c.mu.Unlock()
+
+		// send the messages in a wrong order
+		c.sendMsg(msgLarge)
+		c.sendMsg(msgSmall)
+	}
+}
+
 func (c *Client) incrementClock() {
-	c.vectorClock[c.id] += 1
+	c.vectorClock[c.Id] += 1
 }
 
 func (c *Client) compareAndIncrementClock(incomingClock []int) {
@@ -81,7 +109,7 @@ func (c *Client) compareAndIncrementClock(incomingClock []int) {
 			c.vectorClock[index] = clockValue
 		}
 	}
-	c.vectorClock[c.id] += 1
+	c.vectorClock[c.Id] += 1
 }
 
 // check if there is any potential causality violation

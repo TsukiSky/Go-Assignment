@@ -1,7 +1,8 @@
 package lamportclock
 
 import (
-	"fmt"
+	"homework/hw1/assignment1/logger"
+	"sync"
 	"time"
 )
 
@@ -10,6 +11,7 @@ type Client struct {
 	clock   int
 	server  *Server
 	channel chan Message
+	mu      sync.Mutex
 }
 
 func NewClient(id int, server *Server) *Client {
@@ -22,23 +24,20 @@ func NewClient(id int, server *Server) *Client {
 }
 
 func (c *Client) Activate(msgInterval int) {
-	fmt.Printf("[Client Activate] -- Clock %d -- client %d starts listening and sends periodical messages\n", c.clock, c.id)
+	logger.Logger.Printf("[Client %d] -- Clock %d -- client %d starts listening and sends periodical messages\n", c.id, c.clock, c.id)
 	go c.Listen()
 	go c.SendMsgWithInterval(msgInterval)
 }
 
-// incrementClock increases the clock by 1
-func (c *Client) incrementClock() {
-	c.clock += 1
-}
-
 // compareAndIncrementClock compares the local clock with the incomingClock, chooses the larger clock and increases it by 1
 func (c *Client) compareAndIncrementClock(incomingClock int) {
+	c.mu.Lock()
 	if c.clock >= incomingClock {
 		c.clock += 1
 	} else {
 		c.clock = incomingClock + 1
 	}
+	c.mu.Unlock()
 }
 
 // Listen to messages sent from the server
@@ -47,14 +46,14 @@ func (c *Client) Listen() {
 		select {
 		case msg := <-c.channel:
 			c.compareAndIncrementClock(msg.clock)
-			fmt.Printf("[Client %d] -- Clock %d -- receive %d's message\n", c.id, c.clock, msg.senderId)
+			logger.Logger.Printf("[Client %d] -- Clock %d -- receive server's broadcast message, originally from client %d\n", c.id, c.clock, msg.senderId)
 		}
 	}
 }
 
 // sendMsg to the server
 func (c *Client) sendMsg(msg Message) {
-	fmt.Printf("[Client %d] -- Clock %d -- send message to server\n", msg.senderId, c.clock)
+	logger.Logger.Printf("[Client %d] -- Clock %d -- send message to server\n", msg.senderId, c.clock)
 	c.server.channel <- msg
 }
 
@@ -62,7 +61,7 @@ func (c *Client) sendMsg(msg Message) {
 func (c *Client) SendMsgWithInterval(second int) {
 	for {
 		time.Sleep(time.Duration(second) * time.Second)
-		c.incrementClock()
+		c.compareAndIncrementClock(0)
 		msg := Message{senderId: c.id, clock: c.clock}
 		c.sendMsg(msg)
 	}

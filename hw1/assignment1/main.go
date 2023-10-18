@@ -33,7 +33,7 @@ func main() {
 	case LAMPORT_CLOCK:
 		// lamport clock implementation
 		server := lamportclock.NewServer()
-		server.Initialize()
+		server.Activate()
 		for i := 0; i < numOfClients; i++ {
 			client := lamportclock.NewClient(i, server)
 			server.Register(client)
@@ -49,9 +49,20 @@ func main() {
 			server.Register(client)
 		}
 		server.Activate()
+
+		// run without causality violation
 		for _, client := range server.GetClients() {
 			client.Activate(timeInterval)
 		}
+
+		// common line 54 - 56, and uncomment the following code block to see causality violation
+		//for _, client := range server.GetClients() {
+		//	if client.Id%2 == 0 {
+		//		client.MadlyActivate(timeInterval)
+		//	} else {
+		//		client.Activate(timeInterval)
+		//	}
+		//}
 	}
 	select {}
 }
