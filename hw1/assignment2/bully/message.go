@@ -8,14 +8,12 @@ type GenericContent struct {
 type MessageType int
 
 const (
-	SYN_REQ MessageType = iota
-	SYN_REP
-	ELE_REQ
-	ELE_REP
-	ANC_REQ
-	//ANC_REP
-	HBT_REQ
-	HBT_REP
+	SYN_REQ MessageType = iota // synchronization request
+	ELE_REQ                    // election start request
+	ELE_REP                    // election reply
+	ANC_REQ                    // announcement
+	HBT_REQ                    // heartbeat request
+	HBT_REP                    // heartbeat reply
 )
 
 type Message interface {
@@ -49,32 +47,6 @@ func NewSynRequestMsg(sender int, receiver int, data Data) *SynReqMessage {
 	}
 }
 
-// SynRepMessage implementation
-type SynRepMessage struct {
-	messageType MessageType
-	content     GenericContent
-	synSuccess  bool
-}
-
-func (m *SynRepMessage) GetContent() GenericContent {
-	return m.content
-}
-
-func (m *SynRepMessage) GetMessageType() MessageType {
-	return m.messageType
-}
-
-func NewSynReplyMsg(sender int, receiver int, synSuccess bool) *SynRepMessage {
-	return &SynRepMessage{
-		messageType: SYN_REP,
-		content: GenericContent{
-			SenderId:   sender,
-			ReceiverId: receiver,
-		},
-		synSuccess: synSuccess,
-	}
-}
-
 // ElectReqMessage implementation
 type ElectReqMessage struct {
 	messageType MessageType
@@ -103,7 +75,6 @@ func NewElectReqMsg(sender int, receiver int) *ElectReqMessage {
 type ElectRepMessage struct {
 	messageType MessageType
 	content     GenericContent
-	agree       bool
 }
 
 func (m *ElectRepMessage) GetContent() GenericContent {
@@ -114,19 +85,14 @@ func (m *ElectRepMessage) GetMessageType() MessageType {
 	return m.messageType
 }
 
-func NewElectRepMsg(sender int, receiver int, agree bool) *ElectRepMessage {
+func NewElectRepMsg(sender int, receiver int) *ElectRepMessage {
 	return &ElectRepMessage{
 		messageType: ELE_REP,
 		content: GenericContent{
 			SenderId:   sender,
 			ReceiverId: receiver,
 		},
-		agree: agree,
 	}
-}
-
-func (m *ElectRepMessage) IsAgree() bool {
-	return m.agree
 }
 
 // AncMessage implementation

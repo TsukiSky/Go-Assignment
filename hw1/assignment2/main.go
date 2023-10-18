@@ -55,7 +55,7 @@ func main() {
 	//
 	//for {
 	//	if servers[1].Cluster.GetCoordinator() != nil {
-	//		servers[0].Activate()
+	//		servers[0].PleaseIgnorePreviousAnnouncement()
 	//		break
 	//	}
 	//}
@@ -86,8 +86,9 @@ func main() {
 	//	} else {
 	//		server.PleaseFailWhileAnnounce()
 	//	}
+	//}
 
-	// 3.b Simulate newly elected coordinator fails while election, the failed node is not the newly elected coordinator
+	// 3.b Simulate a node fails while election, the failed node is not the newly elected coordinator
 	// This case could be well-handled by the election timeout mechanism in this implementation.
 	// To simulate this, activate the servers by calling PleaseFailWhileElection()
 	//for index, server := range servers {

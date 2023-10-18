@@ -6,6 +6,7 @@ import (
 	"time"
 )
 
+// Role specifies the role of a server
 type Role int
 
 const (
@@ -13,6 +14,7 @@ const (
 	WORKER
 )
 
+// Status specifies the status of a server
 type Status int
 
 const (
@@ -20,96 +22,90 @@ const (
 	DOWN
 )
 
+// Server is the main structure in this implementation
 type Server struct {
-	id                 int
-	role               Role
-	status             Status
-	Cluster            Cluster
-	msgChannel         chan Message
-	heartbeatChannel   chan Message
-	data               Data
-	election           Election
-	heartbeatFrequency int
-	replyTimeout       int
-	electionTimeout    int
-	syncFrequency      int
-	failWhileAnnounce  bool
-	failWhileElection  bool
+	id                         int // id of the server
+	role                       Role
+	status                     Status
+	Cluster                    Cluster
+	msgChannel                 chan Message // msgChannel is used to receive SynReqMessage, ElectReqMessage, ElectRepMessage and AncMessage
+	heartbeatChannel           chan Message // heartbeatChannel is used to receive heartbeat request and reply
+	data                       Data         // the data carried in this server
+	election                   Election
+	heartbeatFrequency         int
+	replyTimeout               int
+	electionTimeout            int
+	syncFrequency              int
+	failWhileAnnounce          bool // set to true: this server will fail while announcing itself as the coordinator
+	failWhileElection          bool // set to true: this server will fail during the election
+	ignorePreviousAnnouncement bool // set to true: this server will ignore the previous announcement
 }
 
-type ElectionStatus int
-
-const (
-	RUNNING ElectionStatus = iota
-	STOP
-	PAUSE
-)
-
-type Election struct {
-	status        ElectionStatus
-	isCoordinator bool
-}
-
+// NewServer creates a new server. failWhileAnnounce and failWhileElection are set to false by default
 func NewServer(id int, data Data, heartbeatFrequency int, electionTimeout int, replyTimeout int, syncFrequency int) *Server {
 	server := Server{
 		id:         id,
 		role:       WORKER,
 		status:     ALIVE,
 		msgChannel: make(chan Message),
+		data:       data,
 		Cluster: Cluster{
 			servers:     nil,
 			coordinator: nil,
 			size:        0,
 		},
-		data: data,
 		election: Election{
 			status:        STOP,
 			isCoordinator: false,
 		},
-		heartbeatFrequency: heartbeatFrequency,
-		replyTimeout:       replyTimeout,
-		electionTimeout:    electionTimeout,
-		syncFrequency:      syncFrequency,
-		heartbeatChannel:   make(chan Message),
-		failWhileAnnounce:  false,
-		failWhileElection:  false,
+		heartbeatFrequency:         heartbeatFrequency,
+		replyTimeout:               replyTimeout,
+		electionTimeout:            electionTimeout,
+		syncFrequency:              syncFrequency,
+		heartbeatChannel:           make(chan Message),
+		failWhileAnnounce:          false,
+		failWhileElection:          false,
+		ignorePreviousAnnouncement: false,
 	}
 	return &server
 }
 
+// handleMsg handles messages in the msgChannel
 func (s *Server) handleMsg(msg Message) {
 	if s.status == DOWN {
 		return
 	}
 	switch msg := msg.(type) {
 	case *SynReqMessage:
+		// Synchronization Request sent by the coordinator
 		if s.election.status == RUNNING || s.election.status == PAUSE {
-			logger.Logger.Printf("[Server %d] Election is ongoing, cease data synchronization\n", s.id)
+			logger.Logger.Printf("[Server %d] Election is ongoing, data synchronization request is not accepted\n", s.id)
 		} else {
-			logger.Logger.Printf("[Server %d] Synchronization Request from %d, current local time %d, set localtime to %d\n", s.id, msg.content.SenderId, s.data.localTime, msg.data.localTime)
+			logger.Logger.Printf("[Server %d] Synchronization request from %d, current local time %d, set localtime to %d\n", s.id, msg.content.SenderId, s.data.localTime, msg.data.localTime)
 			s.data = msg.data
 		}
 	case *ElectReqMessage:
+		// Election Request sent by some other nodes
 		go func() {
 			sender := s.Cluster.GetServerById(msg.GetContent().SenderId)
-			logger.Logger.Printf("[Server %d] Election Request from %d, Replying No\n", s.id, msg.content.SenderId)
-			if !s.sendMsg(NewElectRepMsg(s.id, sender.id, false), sender.msgChannel) {
-				logger.Logger.Printf("[Server %d] Election Request from %d, fail to send no\n", s.id, msg.content.SenderId)
+			logger.Logger.Printf("[Server %d] Election request from %d, replying a no message\n", s.id, msg.content.SenderId)
+			if !s.sendMsg(NewElectRepMsg(s.id, sender.id), sender.msgChannel) {
+				logger.Logger.Printf("[Server %d] Election request from %d, fail to send a no message\n", s.id, msg.content.SenderId)
 			}
 		}()
 		if s.election.status == STOP || s.election.status == PAUSE {
-			// start election
+			// this server starts election
 			go s.Election(s.electionTimeout)
 		}
 	case *ElectRepMessage:
-		logger.Logger.Printf("[Server %d] Disagree Reply from %d, Stop self-election\n", s.id, msg.content.SenderId)
-		if !msg.IsAgree() {
-			s.election.isCoordinator = false
-			s.election.status = PAUSE
-		}
+		// Election Reply (aka. No) replied by some other nodes
+		logger.Logger.Printf("[Server %d] Reply from %d, stop electing %d\n", s.id, msg.content.SenderId, s.id)
+		s.election.isCoordinator = false
+		s.election.status = PAUSE
 	case *AncMessage:
-		// Announcement Request Message
-		if s.id > msg.GetContent().SenderId {
+		// Announcement Message sent by the coordinator
+		if s.id > msg.GetContent().SenderId || s.ignorePreviousAnnouncement {
+			s.ignorePreviousAnnouncement = false
 			go s.Election(s.electionTimeout)
 		} else {
 			logger.Logger.Printf("[Server %d] Announcement received from %d\n", s.id, msg.content.SenderId)
@@ -121,22 +117,29 @@ func (s *Server) handleMsg(msg Message) {
 	}
 }
 
+// Listen the msgChannel
 func (s *Server) Listen() {
 	logger.Logger.Printf("[Server Activate] Server %d is activated\n", s.id)
 	for {
-		if s.status == ALIVE {
-			select {
-			case msg := <-s.msgChannel:
-				s.handleMsg(msg)
-			}
+		select {
+		case msg := <-s.msgChannel:
+			s.handleMsg(msg)
 		}
 	}
 }
 
+// Activate the server
 func (s *Server) Activate() {
-	go s.Listen()
-	go s.Heartbeat()
-	go s.Work()
+	go s.Listen()    // listen to the msgChannel
+	go s.Heartbeat() // heartbeat
+	go s.Work()      // update local data
+}
+
+func (s *Server) PleaseIgnorePreviousAnnouncement() {
+	s.ignorePreviousAnnouncement = true
+	go s.Listen()    // listen to the msgChannel
+	go s.Heartbeat() // heartbeat
+	go s.Work()      // update local data
 }
 
 func (s *Server) PleaseFailWhileAnnounce() {
@@ -153,13 +156,16 @@ func (s *Server) PleaseFailWhileElection() {
 	go s.Work()
 }
 
+// Work updates the data stored in the server, in this implementation, the data is a variable called localtime
 func (s *Server) Work() {
 	syncTimer := time.NewTimer(time.Duration(s.syncFrequency) * time.Second)
 	for {
 		if s.status == DOWN {
+			// Do not proceed if the server status is DOWN
 			return
 		}
 		if s.role == WORKER {
+			// introduce some randomness to diverse the data on each server
 			if rand.Float64() < 0.5 {
 				s.data.localTime += 1
 			} else {
@@ -169,20 +175,21 @@ func (s *Server) Work() {
 			select {
 			case <-syncTimer.C:
 				if s.election.status == RUNNING || s.election.status == PAUSE {
-					logger.Logger.Printf("[Server %d - Coordinator] Election ongoing, cease synchronization\n", s.id)
+					// Don't synchronization if the election is not over
+					logger.Logger.Printf("[Server %d - Coordinator] Election is ongoing, synchronization is not accepted\n", s.id)
 				} else {
 					currentData := s.data
 					for _, server := range s.Cluster.GetAllServersExceptId(s.id) {
 						server := server
 						go func() {
-							logger.Logger.Printf("[Server %d - Coordinator] Synchronize to value %d, sending to %d\n", s.id, s.data.localTime, server.id)
+							logger.Logger.Printf("[Server %d - Coordinator] Synchronize to value %d, sending to %d\n", s.id, currentData.localTime, server.id)
 							if !s.sendMsg(NewSynRequestMsg(s.id, server.id, currentData), server.msgChannel) {
 								logger.Logger.Printf("[Server %d - Coordinator] Fail to send synchronize message to %d\n", s.id, server.id)
 							}
 						}()
 					}
 				}
-				syncTimer.Reset(time.Duration(s.syncFrequency) * time.Second)
+				syncTimer.Reset(time.Duration(s.syncFrequency) * time.Second) // reset the synchronization clock
 			default:
 				if rand.Float64() < 0.5 {
 					s.data.localTime += 1
@@ -194,6 +201,7 @@ func (s *Server) Work() {
 	}
 }
 
+// sendMsg sends a message to a channel
 func (s *Server) sendMsg(message Message, messageChannel chan Message) bool {
 	select {
 	case messageChannel <- message:
@@ -203,6 +211,7 @@ func (s *Server) sendMsg(message Message, messageChannel chan Message) bool {
 	}
 }
 
+// Heartbeat is the alive-checking mechanism, for servers to know that their coordinator is still alive
 func (s *Server) Heartbeat() {
 	heartbeatTimer := time.NewTimer(time.Duration(s.heartbeatFrequency) * time.Second)
 	heartbeatReplied := true
@@ -213,8 +222,7 @@ func (s *Server) Heartbeat() {
 				return
 			}
 			switch heartbeat := heartbeat.(type) {
-			case *HeartbeatReq:
-				// heartbeat request
+			case *HeartbeatReq: // Heartbeat Request, it is sent by server to the coordinator, "Do a heartbeat so that I can be sure that you are still alive"
 				go func() {
 					reply := NewHeartbeatRep(s.id, heartbeat.GetAsker())
 					logger.Logger.Printf("[Server %d - Coordinator] Sending Heartbeat to %d\n", s.id, heartbeat.GetAsker())
@@ -222,7 +230,7 @@ func (s *Server) Heartbeat() {
 						logger.Logger.Printf("[Server %d - Coordinator] Fail to send heartbeat to %d", s.id, heartbeat.GetAsker())
 					}
 				}()
-			case *HeartbeatRep:
+			case *HeartbeatRep: // Heartbeat reply, it is sent by the coordinator to the heartbeat requester
 				heartbeatReplied = true
 			}
 		case <-heartbeatTimer.C:
@@ -230,7 +238,7 @@ func (s *Server) Heartbeat() {
 				return
 			}
 			if (s.election.status == RUNNING || s.election.status == PAUSE) && s.role != COORDINATOR {
-				logger.Logger.Printf("[Server %d] Election is ongoing, cease heartbeat check\n", s.id)
+				logger.Logger.Printf("[Server %d] Election is ongoing, heartbeat checking is ceased\n", s.id)
 			} else {
 				if s.Cluster.GetCoordinator() != nil && s.role == WORKER {
 					// send heartbeat request if the last time request has been replied
@@ -245,7 +253,7 @@ func (s *Server) Heartbeat() {
 							}
 						}()
 					} else {
-						// coordinator is down
+						// coordinator is down, start an election if there is no ongoing election
 						go func() {
 							if s.election.status == STOP {
 								logger.Logger.Printf("[Server %d] Fail to Get Heartbeat from %d, retart election\n", s.id, s.Cluster.GetCoordinator().id)
@@ -255,43 +263,42 @@ func (s *Server) Heartbeat() {
 						}()
 					}
 				} else if s.role != COORDINATOR {
-					// coordinator is nil
+					// coordinator is nil, start an election if there is no ongoing election
 					if s.election.status == STOP {
-						go s.Election(s.electionTimeout) // start election
+						go s.Election(s.electionTimeout)
 					}
 				}
 			}
-			heartbeatTimer.Reset(time.Duration(s.heartbeatFrequency) * time.Second)
+			heartbeatTimer.Reset(time.Duration(s.heartbeatFrequency) * time.Second) // reset heartbeat timer
 		}
 
 	}
 }
 
+// Election elects the server itself as the coordinator
 func (s *Server) Election(timeOut int) {
-	// every election starts with a self-voting
 	s.election.status = RUNNING
-	s.election.isCoordinator = true
+	s.election.isCoordinator = true // every election starts with a self-voting
 	for _, server := range s.Cluster.GetAllServersLargerThanId(s.id) {
 		if s.election.status == RUNNING {
 			msg := NewElectReqMsg(s.id, server.id)
-			logger.Logger.Printf("[Server %d] Sending Election Message to %d\n", s.id, server.id)
+			logger.Logger.Printf("[Server %d] Sending election message to %d\n", s.id, server.id)
 			go s.sendMsg(msg, server.msgChannel)
 		}
 		if s.failWhileElection {
 			s.status = DOWN
-			logger.Logger.Printf("[Server %d] Opps.. I am DOWN\n", s.id)
+			logger.Logger.Printf("[Server %d] Ops... I am DOWN\n", s.id)
 			break
 		}
 	}
 
-	// timeout
-	time.Sleep(time.Duration(timeOut) * time.Second)
-
+	time.Sleep(time.Duration(timeOut) * time.Second) // wait other's reply to the self-election request
 	if s.election.status == RUNNING && s.election.isCoordinator {
 		s.announce()
 	}
 }
 
+// announce the server as the coordinator
 func (s *Server) announce() {
 	if s.status == DOWN {
 		return

@@ -4,6 +4,7 @@ import (
 	"homework/hw1/logger"
 )
 
+// Data to be stored in the server
 type Data struct {
 	localTime int
 }
@@ -12,6 +13,21 @@ func NewData() Data {
 	return Data{localTime: 0}
 }
 
+// ElectionStatus and Election
+type ElectionStatus int
+
+const (
+	RUNNING ElectionStatus = iota
+	STOP
+	PAUSE
+)
+
+type Election struct {
+	status        ElectionStatus
+	isCoordinator bool
+}
+
+// Cluster contains a group of servers
 type Cluster struct {
 	servers     []*Server
 	coordinator *Server
@@ -62,6 +78,7 @@ func (c *Cluster) GetAllServersExceptId(id int) []*Server {
 	return returnServers
 }
 
+// GetAllServersLargerThanId gets all servers that has a larger id than the input id
 func (c *Cluster) GetAllServersLargerThanId(id int) []*Server {
 	returnServers := make([]*Server, 0)
 	for _, server := range c.servers {
