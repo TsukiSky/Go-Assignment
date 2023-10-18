@@ -21,27 +21,30 @@ This homework contains two assignments, each focusing on specific concepts in di
 The structure of this homework is:
 
 ├─hw1
-|  ├─Programming_HW1_2023.pdf
-|  ├─readme.md
-|  ├─assignment1
-|  |      ├─main.go
-|  |      ├─vectorclock
-|  |      |      ├─client.go
-|  |      |      ├─message.go
-|  |      |      └server.go
-|  |      ├─logger
-|  |      |   └logger.go
-|  |      ├─lamportclock
-|  |      |      ├─client.go
-|  |      |      ├─message.go
-|  |      |      └server.go
-|  ├─assignment2
-|  |      ├─main.go
-|  |      ├─bully
-|  |      |   ├─message.go
-|  |      |   ├─server.go
-|  |      |   └util.go
-
+|  ├─readme.md  
+|  ├─logger  
+|  |   └logger.go  
+|  ├─assignment2  
+|  |      ├─main.go  
+|  |      ├─doc  
+|  |      |  └fig1_message.jpg  
+|  |      ├─bully  
+|  |      |   ├─message.go  
+|  |      |   ├─server.go  
+|  |      |   └util.go  
+|  ├─assignment1  
+|  |      ├─main.go  
+|  |      ├─vectorclock  
+|  |      |      ├─client.go  
+|  |      |      ├─message.go  
+|  |      |      └server.go  
+|  |      ├─lamportclock  
+|  |      |      ├─client.go  
+|  |      |      ├─message.go  
+|  |      |      └server.go  
+|  |      ├─doc  
+|  |      |  ├─fig1_lamport_architecture.jpg  
+|  |      |  └fig2_vector_architecture.jpg  
 
 ## Compilation and Execution
 
