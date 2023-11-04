@@ -1,4 +1,4 @@
-package lamport
+package util
 
 import "container/heap"
 
@@ -34,6 +34,11 @@ func (q *MsgPriorityQueue) Push(msg Message) {
 
 func (q *MsgPriorityQueue) Pop() Message {
 	return heap.Pop(&q.queue).(Message)
+}
+
+// Peek returns the message with the highest priority
+func (q *MsgPriorityQueue) Peek() Message {
+	return q.queue[0]
 }
 
 // msgPriorityQueue is a priority queue for messages
