@@ -1,5 +1,7 @@
 package lamport
 
+import "homework/logger"
+
 type Cluster struct {
 	Servers []*Server
 }
@@ -19,6 +21,7 @@ func (c *Cluster) AddServer(server *Server) {
 		server.VectorClock = append(server.VectorClock, 0)
 	}
 	c.Servers = append(c.Servers, server)
+	logger.Logger.Printf("[Cluster ] Server %d added to the cluster\n", server.Id)
 }
 
 func (c *Cluster) Activate() {

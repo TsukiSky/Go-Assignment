@@ -2,7 +2,7 @@ package main
 
 import (
 	"homework/hw1/assignment2/bully"
-	"homework/hw1/logger"
+	"homework/logger"
 )
 
 // Use Bully algorithm to implement a working version of replica synchronization.
@@ -27,7 +27,7 @@ const (
 )
 
 func main() {
-	logger.Init("assignment_2.log", "assignment 2: ")
+	logger.Init("hw1", "assignment_2.log", "assignment 2: ")
 	servers := make([]*bully.Server, 0)
 	// create servers
 	for i := 0; i < numOfServers; i++ {

@@ -37,8 +37,11 @@ func (q *MsgPriorityQueue) Pop() Message {
 }
 
 // Peek returns the message with the highest priority
-func (q *MsgPriorityQueue) Peek() Message {
-	return q.queue[0]
+func (q *MsgPriorityQueue) Peek() *Message {
+	if q.Len() == 0 {
+		return nil
+	}
+	return &q.queue[0]
 }
 
 // msgPriorityQueue is a priority queue for messages

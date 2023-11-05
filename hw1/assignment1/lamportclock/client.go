@@ -1,7 +1,7 @@
 package lamportclock
 
 import (
-	"homework/hw1/logger"
+	"homework/logger"
 	"sync"
 	"time"
 )

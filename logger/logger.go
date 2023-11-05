@@ -7,9 +7,9 @@ import (
 
 var Logger *log.Logger
 
-func Init(logFilename, logPrefix string) {
+func Init(homeworkId, logFilename, logPrefix string) {
 	if Logger == nil {
-		logFile, err := os.Create("hw1\\" + logFilename)
+		logFile, err := os.Create(homeworkId + "\\" + logFilename)
 		if err != nil {
 			log.Fatal("unable to create log file:", err)
 		}

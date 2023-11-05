@@ -2,6 +2,7 @@ package lamport
 
 import (
 	"homework/hw2/assignment1/lamport/util"
+	"homework/logger"
 	"time"
 )
 
@@ -35,6 +36,7 @@ func NewServer(id int) *Server {
 func (s *Server) onReceiveRequest(msg util.Message) {
 	s.INCREMENT_CLOCK()
 	s.Queue.Push(msg) // push the request to the queue
+	logger.Logger.Printf("[Server %d] Received request from server %d\n", s.Id, msg.SenderId)
 	if s.canReply(msg) {
 		// reply to the server
 		s.reply(msg)
@@ -42,24 +44,26 @@ func (s *Server) onReceiveRequest(msg util.Message) {
 }
 
 // onReceiveReply handles the reply message
-func (s *Server) onReceiveReply() {
+func (s *Server) onReceiveReply(msg util.Message) {
 	s.INCREMENT_CLOCK()
-	if s.pendingRequest == nil {
+	logger.Logger.Printf("[Server %d] Received reply from %d\n", s.Id, msg.SenderId)
+	if s.pendingRequest != nil {
 		s.replyCount++
 		if s.replyCount == len(s.Connections) {
 			peek := s.Queue.Peek()
-			if peek.Equal(*s.pendingRequest) {
+			if peek != nil && peek.Equal(*s.pendingRequest) {
 				s.executeAndRelease()
 			}
 		}
 	}
 }
 
-func (s *Server) onReceiveRelease() {
+func (s *Server) onReceiveRelease(msg util.Message) {
 	s.INCREMENT_CLOCK()
+	logger.Logger.Printf("[Server %d] Received release from %d\n", s.Id, msg.SenderId)
 	s.Queue.Pop()
 	peek := s.Queue.Peek()
-	if s.pendingRequest != nil && peek.Equal(*s.pendingRequest) {
+	if peek != nil && s.pendingRequest != nil && peek.Equal(*s.pendingRequest) {
 		s.executeAndRelease()
 	}
 }
@@ -72,6 +76,7 @@ func (s *Server) execute() {
 
 // Execute the critical section and release the critical section
 func (s *Server) executeAndRelease() {
+	logger.Logger.Printf("[Server %d] Executing the critical section\n", s.Id)
 	s.execute()
 	s.Queue.Pop()
 	s.ResetRequest()
@@ -81,6 +86,7 @@ func (s *Server) executeAndRelease() {
 // Release the critical section
 func (s *Server) release() {
 	s.INCREMENT_CLOCK()
+	logger.Logger.Printf("[Server %d] Released the critical section\n", s.Id)
 	release := util.Message{
 		SenderId:    s.Id,
 		MessageType: util.RELEASE,
@@ -106,6 +112,7 @@ func (s *Server) canReply(msg util.Message) bool {
 // Increment the vector clock and reply to the server
 func (s *Server) reply(msg util.Message) {
 	s.INCREMENT_CLOCK()
+	logger.Logger.Printf("[Server %d] Replied to server %d\n", s.Id, msg.SenderId)
 	clock := make([]int, len(s.VectorClock))
 	copy(clock, s.VectorClock)
 	reply := util.Message{
@@ -124,9 +131,9 @@ func (s *Server) Listen() {
 			case util.REQUEST:
 				s.onReceiveRequest(msg)
 			case util.REPLY:
-				s.onReceiveReply()
+				s.onReceiveReply(msg)
 			case util.RELEASE:
-				s.onReceiveRelease()
+				s.onReceiveRelease(msg)
 			}
 		}
 	}
@@ -134,6 +141,7 @@ func (s *Server) Listen() {
 
 // Activate activates the server
 func (s *Server) Activate() {
+	logger.Logger.Printf("[Server %d] Activated\n", s.Id)
 	go s.Listen()
 	go s.SendRequestWithInterval(5)
 }
@@ -153,7 +161,9 @@ func (s *Server) SendRequestWithInterval(second int) {
 			VectorClock: clock,
 		}
 		s.pendingRequest = &msg
+		s.Queue.Push(msg)
 		s.replyCount = 0
+		logger.Logger.Printf("[Server %d] Sent critical section request\n", s.Id)
 		for _, outChannel := range s.Connections {
 			outChannel <- msg
 		}
@@ -167,6 +177,6 @@ func (s *Server) INCREMENT_CLOCK() {
 
 // ResetRequest resets the pending request and reply count
 func (s *Server) ResetRequest() {
-	s.pendingRequest = nil
-	s.replyCount = 0
+	//s.pendingRequest = nil
+	//s.replyCount = 0
 }

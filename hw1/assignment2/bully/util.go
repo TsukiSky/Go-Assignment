@@ -1,7 +1,7 @@
 package bully
 
 import (
-	"homework/hw1/logger"
+	"homework/logger"
 )
 
 // Data to be stored in the server
