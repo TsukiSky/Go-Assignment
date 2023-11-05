@@ -51,7 +51,7 @@ func (q *msgPriorityQueue) Len() int {
 
 // Less defines the priority of messages in the priority queue
 func (q *msgPriorityQueue) Less(i, j int) bool {
-	return (*q)[i].LargerThan((*q)[j])
+	return !(*q)[i].LargerThan((*q)[j])
 }
 
 // Swap defines the swapping rule of two messages in the priority queue
