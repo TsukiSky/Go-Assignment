@@ -6,6 +6,7 @@ type Cluster struct {
 	Servers []*Server
 }
 
+// NewCluster returns a new cluster
 func NewCluster() *Cluster {
 	return &Cluster{
 		Servers: make([]*Server, 0),
@@ -16,14 +17,14 @@ func NewCluster() *Cluster {
 func (c *Cluster) AddServer(server *Server) {
 	for _, s := range c.Servers {
 		s.Connections[server.Id] = server.Channel
-		s.VectorClock = append(s.VectorClock, 0)
 		server.Connections[s.Id] = s.Channel
-		server.VectorClock = append(server.VectorClock, 0)
 	}
+	server.ScalarClock = 0
 	c.Servers = append(c.Servers, server)
 	logger.Logger.Printf("[Cluster ] Server %d added to the cluster\n", server.Id)
 }
 
+// Activate activates all servers in the cluster
 func (c *Cluster) Activate() {
 	for _, server := range c.Servers {
 		server.Activate()

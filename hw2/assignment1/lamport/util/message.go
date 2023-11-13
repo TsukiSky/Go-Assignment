@@ -3,7 +3,7 @@ package util
 type Message struct {
 	SenderId    int
 	MessageType MessageType
-	VectorClock []int
+	ScalarClock int
 }
 
 type MessageType int
@@ -14,40 +14,25 @@ const (
 	RELEASE                    // critical section release
 )
 
-func (m *Message) SetClock(clock []int) {
-	m.VectorClock = clock
+// SetClock sets the scalar clock of the message
+func (m *Message) SetClock(clock int) {
+	m.ScalarClock = clock
 }
 
-// LargerThan returns true if the message's vector clock is larger than a given message
-// If the vector clocks are equal or concurrent, the message with the larger sender id is larger
-func (m *Message) LargerThan(message Message) bool {
-	hasLarger := false
-	hasLess := false
-	for i, clock := range m.VectorClock {
-		if clock < message.VectorClock[i] {
-			hasLess = true
-		} else if clock > message.VectorClock[i] {
-			hasLarger = true
-		}
-	}
-	if hasLarger && !hasLess {
-		return true
-	} else if !hasLarger && hasLess {
-		return false
-	} else {
+// IsLargerThan returns true if the message's scalar clock is larger than a given message
+// If the scalar clocks are equal or concurrent, the message with the larger sender id is larger
+func (m *Message) IsLargerThan(message Message) bool {
+	if m.ScalarClock == message.ScalarClock {
 		return m.SenderId > message.SenderId
+	} else {
+		return m.ScalarClock > message.ScalarClock
 	}
 }
 
 // Equal returns true if the message equals to a given message
 func (m *Message) Equal(message Message) bool {
-	if (m.SenderId != message.SenderId) || (m.MessageType != message.MessageType || len(m.VectorClock) != len(message.VectorClock)) {
+	if (m.SenderId != message.SenderId) || (m.MessageType != message.MessageType || m.ScalarClock != message.ScalarClock) {
 		return false
-	}
-	for i, clock := range m.VectorClock {
-		if clock != message.VectorClock[i] {
-			return false
-		}
 	}
 	return true
 }

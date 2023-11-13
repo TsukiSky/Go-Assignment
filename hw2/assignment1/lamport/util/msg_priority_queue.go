@@ -16,6 +16,7 @@ type MsgPriorityQueue struct {
 	queue msgPriorityQueue
 }
 
+// NewMsgPriorityQueue returns a new priority queue for messages
 func NewMsgPriorityQueue() *MsgPriorityQueue {
 	queue := make(msgPriorityQueue, 0)
 	heap.Init(&queue)
@@ -24,14 +25,17 @@ func NewMsgPriorityQueue() *MsgPriorityQueue {
 	}
 }
 
+// Len returns the length of the priority queue
 func (q *MsgPriorityQueue) Len() int {
 	return q.queue.Len()
 }
 
+// Push adds a message to the priority queue
 func (q *MsgPriorityQueue) Push(msg Message) {
 	heap.Push(&q.queue, msg)
 }
 
+// Pop removes the message with the highest priority from the priority queue
 func (q *MsgPriorityQueue) Pop() Message {
 	return heap.Pop(&q.queue).(Message)
 }
@@ -54,7 +58,7 @@ func (q *msgPriorityQueue) Len() int {
 
 // Less defines the priority of messages in the priority queue
 func (q *msgPriorityQueue) Less(i, j int) bool {
-	return !(*q)[i].LargerThan((*q)[j])
+	return !(*q)[i].IsLargerThan((*q)[j])
 }
 
 // Swap defines the swapping rule of two messages in the priority queue
