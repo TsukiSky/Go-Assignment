@@ -1,38 +1,38 @@
-package lamport
+package sharedpriorityqueue
 
 import (
-	"homework/hw2/assignment1/lamport/util"
+	util2 "homework/hw2/assignment1/util"
 	"homework/logger"
 	"time"
 )
 
 // Server represents a server in the distributed system
 type Server struct {
-	Id             int
-	Channel        chan util.Message
-	Connections    map[int]chan util.Message // map of server id to their message channel
-	Queue          util.MsgPriorityQueue
-	ScalarClock    int
-	pendingRequest *util.Message
-	replyCount     int
+	Id               int
+	Channel          chan util2.Message
+	Connections      map[int]chan util2.Message // map of server id to their message channel
+	Queue            util2.MsgPriorityQueue
+	ScalarClock      int
+	pendingRequest   *util2.Message
+	repliedServerIds []int
 }
 
 // NewServer returns a new server with the given id
 func NewServer(id int) *Server {
 	scalarClock := 0
 	return &Server{
-		Id:             id,
-		Channel:        make(chan util.Message),
-		Connections:    make(map[int]chan util.Message),
-		Queue:          *util.NewMsgPriorityQueue(),
-		ScalarClock:    scalarClock,
-		pendingRequest: nil,
-		replyCount:     0,
+		Id:               id,
+		Channel:          make(chan util2.Message),
+		Connections:      make(map[int]chan util2.Message),
+		Queue:            *util2.NewMsgPriorityQueue(),
+		ScalarClock:      scalarClock,
+		pendingRequest:   nil,
+		repliedServerIds: make([]int, 0),
 	}
 }
 
 // onReceiveRequest handles the request message
-func (s *Server) onReceiveRequest(msg util.Message) {
+func (s *Server) onReceiveRequest(msg util2.Message) {
 	s.INCREMENT_CLOCK()
 	s.Queue.Push(msg) // push the request to the queue
 	logger.Logger.Printf("[Server %d] Received a request from server %d\n", s.Id, msg.SenderId)
@@ -43,12 +43,12 @@ func (s *Server) onReceiveRequest(msg util.Message) {
 }
 
 // onReceiveReply handles the reply message
-func (s *Server) onReceiveReply(msg util.Message) {
+func (s *Server) onReceiveReply(msg util2.Message) {
 	s.INCREMENT_CLOCK()
 	logger.Logger.Printf("[Server %d] Received reply from %d\n", s.Id, msg.SenderId)
 	if s.pendingRequest != nil {
-		s.replyCount++
-		if s.replyCount == len(s.Connections) {
+		s.repliedServerIds = append(s.repliedServerIds, msg.SenderId)
+		if len(s.repliedServerIds) == len(s.Connections) {
 			peek := s.Queue.Peek()
 			if peek != nil && peek.Equal(*s.pendingRequest) {
 				s.executeAndRelease()
@@ -58,7 +58,7 @@ func (s *Server) onReceiveReply(msg util.Message) {
 }
 
 // onReceiveRelease handles the release message
-func (s *Server) onReceiveRelease(msg util.Message) {
+func (s *Server) onReceiveRelease(msg util2.Message) {
 	s.INCREMENT_CLOCK()
 	logger.Logger.Printf("[Server %d] Received release from %d\n", s.Id, msg.SenderId)
 	s.Queue.Pop()
@@ -87,9 +87,9 @@ func (s *Server) executeAndRelease() {
 func (s *Server) release() {
 	s.INCREMENT_CLOCK()
 	logger.Logger.Printf("[Server %d] Released the critical section\n", s.Id)
-	release := util.Message{
+	release := util2.Message{
 		SenderId:    s.Id,
-		MessageType: util.RELEASE,
+		MessageType: util2.RELEASE,
 		ScalarClock: s.ScalarClock,
 	}
 	for _, outChannel := range s.Connections {
@@ -98,25 +98,28 @@ func (s *Server) release() {
 }
 
 // Check if the server can reply to the request
-func (s *Server) canReply(msg util.Message) bool {
+func (s *Server) canReply(msg util2.Message) bool {
 	// check if the request is at the top of the queue
 	if s.pendingRequest == nil || s.pendingRequest.IsLargerThan(msg) {
 		return true
+	} else {
+		for _, id := range s.repliedServerIds {
+			if id == msg.SenderId {
+				return true
+			}
+		}
+		return false
 	}
-	if s.Id > msg.SenderId {
-		return true
-	}
-	return false
 }
 
 // Increment the scalar clock and reply to the server
-func (s *Server) reply(msg util.Message) {
+func (s *Server) reply(msg util2.Message) {
 	s.INCREMENT_CLOCK()
 	logger.Logger.Printf("[Server %d] Replied to server %d\n", s.Id, msg.SenderId)
 	clock := s.ScalarClock
-	reply := util.Message{
+	reply := util2.Message{
 		SenderId:    s.Id,
-		MessageType: util.REPLY,
+		MessageType: util2.REPLY,
 		ScalarClock: clock,
 	}
 	s.Connections[msg.SenderId] <- reply
@@ -128,11 +131,11 @@ func (s *Server) Listen() {
 		select {
 		case msg := <-s.Channel:
 			switch msg.MessageType {
-			case util.REQUEST:
+			case util2.REQUEST:
 				s.onReceiveRequest(msg)
-			case util.REPLY:
+			case util2.REPLY:
 				s.onReceiveReply(msg)
-			case util.RELEASE:
+			case util2.RELEASE:
 				s.onReceiveRelease(msg)
 			}
 		}
@@ -157,14 +160,14 @@ func (s *Server) SendRequestWithInterval(second int) {
 		// make a new request
 		s.INCREMENT_CLOCK()
 		clock := s.ScalarClock
-		msg := util.Message{
+		msg := util2.Message{
 			SenderId:    s.Id,
-			MessageType: util.REQUEST,
+			MessageType: util2.REQUEST,
 			ScalarClock: clock,
 		}
 		s.pendingRequest = &msg
 		s.Queue.Push(msg)
-		s.replyCount = 0
+		s.repliedServerIds = make([]int, 0)
 		logger.Logger.Printf("[Server %d] Sent a request to access the critical section\n", s.Id)
 		for _, msgChannel := range s.Connections {
 			msgChannel <- msg

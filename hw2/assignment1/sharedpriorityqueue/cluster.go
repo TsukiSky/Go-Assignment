@@ -1,4 +1,4 @@
-package lamport
+package sharedpriorityqueue
 
 import "homework/logger"
 
