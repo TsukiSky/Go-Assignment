@@ -3,6 +3,7 @@ package sharedpriorityqueue
 import (
 	util2 "homework/hw2/assignment1/util"
 	"homework/logger"
+	"sync"
 	"time"
 )
 
@@ -15,6 +16,8 @@ type Server struct {
 	ScalarClock      int
 	pendingRequest   *util2.Message
 	repliedServerIds []int
+	toReply          []int
+	mu               sync.Mutex
 }
 
 // NewServer returns a new server with the given id
@@ -28,6 +31,7 @@ func NewServer(id int) *Server {
 		ScalarClock:      scalarClock,
 		pendingRequest:   nil,
 		repliedServerIds: make([]int, 0),
+		toReply:          make([]int, 0),
 	}
 }
 
@@ -39,6 +43,14 @@ func (s *Server) onReceiveRequest(msg util2.Message) {
 	if s.canReply(msg) {
 		// reply to the server
 		s.reply(msg)
+	} else {
+		for _, id := range s.repliedServerIds {
+			if id == msg.SenderId {
+				s.reply(msg)
+				return
+			}
+		}
+		s.toReply = append(s.toReply, msg.SenderId) // add the sender id to the list of servers to reply after receiving its reply
 	}
 }
 
@@ -47,11 +59,20 @@ func (s *Server) onReceiveReply(msg util2.Message) {
 	s.INCREMENT_CLOCK()
 	logger.Logger.Printf("[Server %d] Received reply from %d\n", s.Id, msg.SenderId)
 	if s.pendingRequest != nil {
+		for i, id := range s.toReply {
+			if id == msg.SenderId {
+				s.reply(msg) // reply to the server
+				s.toReply[i] = s.toReply[len(s.toReply)-1]
+				s.toReply = s.toReply[:len(s.toReply)-1]
+				break
+			}
+		}
+
 		s.repliedServerIds = append(s.repliedServerIds, msg.SenderId)
 		if len(s.repliedServerIds) == len(s.Connections) {
 			peek := s.Queue.Peek()
 			if peek != nil && peek.Equal(*s.pendingRequest) {
-				s.executeAndRelease()
+				go s.executeAndRelease()
 			}
 		}
 	}
@@ -64,19 +85,19 @@ func (s *Server) onReceiveRelease(msg util2.Message) {
 	s.Queue.Pop()
 	peek := s.Queue.Peek()
 	if peek != nil && s.pendingRequest != nil && peek.Equal(*s.pendingRequest) {
-		s.executeAndRelease()
+		go s.executeAndRelease()
 	}
 }
 
 // Execute the critical section
 func (s *Server) execute() {
-	s.INCREMENT_CLOCK()
+	clock := s.INCREMENT_CLOCK()
+	logger.Logger.Printf("[Server %d] [Scalar Clock %d] Executing the critical section\n", s.Id, clock)
 	time.Sleep(1 * time.Second)
 }
 
 // Execute the critical section and release the critical section
 func (s *Server) executeAndRelease() {
-	logger.Logger.Printf("[Server %d] Executing the critical section\n", s.Id)
 	s.execute()
 	s.Queue.Pop()
 	s.ResetRequest()
@@ -85,12 +106,12 @@ func (s *Server) executeAndRelease() {
 
 // Release the critical section
 func (s *Server) release() {
-	s.INCREMENT_CLOCK()
+	clock := s.INCREMENT_CLOCK()
 	logger.Logger.Printf("[Server %d] Released the critical section\n", s.Id)
 	release := util2.Message{
 		SenderId:    s.Id,
 		MessageType: util2.RELEASE,
-		ScalarClock: s.ScalarClock,
+		ScalarClock: clock,
 	}
 	for _, outChannel := range s.Connections {
 		outChannel <- release
@@ -114,9 +135,8 @@ func (s *Server) canReply(msg util2.Message) bool {
 
 // Increment the scalar clock and reply to the server
 func (s *Server) reply(msg util2.Message) {
-	s.INCREMENT_CLOCK()
+	clock := s.INCREMENT_CLOCK()
 	logger.Logger.Printf("[Server %d] Replied to server %d\n", s.Id, msg.SenderId)
-	clock := s.ScalarClock
 	reply := util2.Message{
 		SenderId:    s.Id,
 		MessageType: util2.REPLY,
@@ -158,17 +178,16 @@ func (s *Server) SendRequestWithInterval(second int) {
 		}
 
 		// make a new request
-		s.INCREMENT_CLOCK()
-		clock := s.ScalarClock
+		clock := s.INCREMENT_CLOCK()
 		msg := util2.Message{
 			SenderId:    s.Id,
 			MessageType: util2.REQUEST,
 			ScalarClock: clock,
 		}
+		logger.Logger.Printf("[Server %d] Sent a request to access the critical section\n", s.Id)
 		s.pendingRequest = &msg
 		s.Queue.Push(msg)
 		s.repliedServerIds = make([]int, 0)
-		logger.Logger.Printf("[Server %d] Sent a request to access the critical section\n", s.Id)
 		for _, msgChannel := range s.Connections {
 			msgChannel <- msg
 		}
@@ -176,8 +195,12 @@ func (s *Server) SendRequestWithInterval(second int) {
 }
 
 // INCREMENT_CLOCK increase the scalar clock
-func (s *Server) INCREMENT_CLOCK() {
+func (s *Server) INCREMENT_CLOCK() int {
+	s.mu.Lock()
 	s.ScalarClock++
+	newClock := s.ScalarClock
+	s.mu.Unlock()
+	return newClock
 }
 
 // ResetRequest resets the pending request and reply count

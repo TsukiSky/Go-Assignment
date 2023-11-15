@@ -3,6 +3,7 @@ package optimizedsharedpriorityqueue
 import (
 	util2 "homework/hw2/assignment1/util"
 	"homework/logger"
+	"sync"
 	"time"
 )
 
@@ -16,17 +17,17 @@ type Server struct {
 	pendingRequest *util2.Message
 	replyCount     int
 	toReply        []int
+	mu             sync.Mutex
 }
 
 // NewServer returns a new server with the given id
 func NewServer(id int) *Server {
-	scalarClock := 0
 	return &Server{
 		Id:             id,
 		Channel:        make(chan util2.Message),
 		Connections:    make(map[int]chan util2.Message),
 		Queue:          *util2.NewMsgPriorityQueue(),
-		ScalarClock:    scalarClock,
+		ScalarClock:    0,
 		pendingRequest: nil,
 		replyCount:     0,
 		toReply:        make([]int, 0),
@@ -52,20 +53,21 @@ func (s *Server) onReceiveReply(msg util2.Message) {
 	if s.pendingRequest != nil {
 		s.replyCount++
 		if s.replyCount == len(s.Connections) {
-			s.executeAndReply()
+			go s.executeAndReply()
 		}
 	}
 }
 
 // Execute the critical section
 func (s *Server) execute() {
-	s.INCREMENT_CLOCK()
+	clock := s.INCREMENT_CLOCK()
+	logger.Logger.Printf("[Server %d] [Scalar Clock %d] Executing the critical section\n", s.Id, clock)
 	time.Sleep(1 * time.Second)
+	logger.Logger.Printf("[Server %d] Finished executing the critical section\n", s.Id)
 }
 
 // Execute the critical section and release the critical section
 func (s *Server) executeAndReply() {
-	logger.Logger.Printf("[Server %d] Executing the critical section\n", s.Id)
 	s.execute()
 	s.Queue.Pop()
 	s.ResetRequest()
@@ -87,9 +89,8 @@ func (s *Server) canReply(msg util2.Message) bool {
 
 // Increment the scalar clock and reply to the server
 func (s *Server) reply(toServerId int) {
-	s.INCREMENT_CLOCK()
+	clock := s.INCREMENT_CLOCK()
 	logger.Logger.Printf("[Server %d] Replied to server %d\n", s.Id, toServerId)
-	clock := s.ScalarClock
 	reply := util2.Message{
 		SenderId:    s.Id,
 		MessageType: util2.REPLY,
@@ -129,8 +130,7 @@ func (s *Server) SendRequestWithInterval(second int) {
 		}
 
 		// make a new request
-		s.INCREMENT_CLOCK()
-		clock := s.ScalarClock
+		clock := s.INCREMENT_CLOCK()
 		msg := util2.Message{
 			SenderId:    s.Id,
 			MessageType: util2.REQUEST,
@@ -147,8 +147,12 @@ func (s *Server) SendRequestWithInterval(second int) {
 }
 
 // INCREMENT_CLOCK increase the scalar clock
-func (s *Server) INCREMENT_CLOCK() {
+func (s *Server) INCREMENT_CLOCK() int {
+	s.mu.Lock()
 	s.ScalarClock++
+	newClock := s.ScalarClock
+	s.mu.Unlock()
+	return newClock
 }
 
 // ResetRequest resets the pending request and reply count
