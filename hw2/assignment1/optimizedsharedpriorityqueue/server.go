@@ -61,7 +61,7 @@ func (s *Server) onReceiveReply(msg util2.Message) {
 // Execute the critical section
 func (s *Server) execute() {
 	clock := s.INCREMENT_CLOCK()
-	logger.Logger.Printf("[Server %d] [Scalar Clock %d] Executing the critical section\n", s.Id, clock)
+	logger.Logger.Printf("[Server %d] Executing the critical section\n", s.Id, clock)
 	time.Sleep(1 * time.Second)
 	logger.Logger.Printf("[Server %d] Finished executing the critical section\n", s.Id)
 }

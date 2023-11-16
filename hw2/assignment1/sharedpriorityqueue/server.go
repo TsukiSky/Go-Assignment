@@ -22,13 +22,12 @@ type Server struct {
 
 // NewServer returns a new server with the given id
 func NewServer(id int) *Server {
-	scalarClock := 0
 	return &Server{
 		Id:               id,
 		Channel:          make(chan util2.Message),
 		Connections:      make(map[int]chan util2.Message),
 		Queue:            *util2.NewMsgPriorityQueue(),
-		ScalarClock:      scalarClock,
+		ScalarClock:      0,
 		pendingRequest:   nil,
 		repliedServerIds: make([]int, 0),
 		toReply:          make([]int, 0),
@@ -92,7 +91,7 @@ func (s *Server) onReceiveRelease(msg util2.Message) {
 // Execute the critical section
 func (s *Server) execute() {
 	clock := s.INCREMENT_CLOCK()
-	logger.Logger.Printf("[Server %d] [Scalar Clock %d] Executing the critical section\n", s.Id, clock)
+	logger.Logger.Printf("[Server %d] Executing the critical section\n", s.Id, clock)
 	time.Sleep(1 * time.Second)
 }
 
