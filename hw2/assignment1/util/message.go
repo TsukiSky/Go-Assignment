@@ -9,11 +9,12 @@ type Message struct {
 type MessageType int
 
 const (
-	REQUEST MessageType = iota // critical section request
-	REPLY                      // critical section reply
-	RELEASE                    // critical section release
-	RESCIND                    // vote rescind (only in voting protocol)
-	VOTE                       // vote (only in voting protocol)
+	REQUEST         MessageType = iota // critical section request
+	REPLY                              // critical section reply
+	RELEASE                            // critical section release
+	RESCIND                            // vote rescind (only in voting protocol)
+	RESCIND_RELEASE                    // rescind release (only in voting protocol)
+	VOTE                               // vote (only in voting protocol)
 )
 
 // SetClock sets the scalar clock of the message

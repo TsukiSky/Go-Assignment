@@ -40,6 +40,7 @@ func NewServer(id int) *Server {
 // onReceiveRequest handles the request message
 func (s *Server) onReceiveRequest(msg util.Message) {
 	s.INCREMENT_CLOCK()
+	logger.Logger.Printf("[Server %d] Received a vote request from server %d\n", s.Id, msg.SenderId)
 	if s.voteTo == nil {
 		// msg is the only request in the queue
 		s.Vote(msg.SenderId)
@@ -53,6 +54,7 @@ func (s *Server) onReceiveRequest(msg util.Message) {
 // onReceiveVote handles the vote message
 func (s *Server) onReceiveVote(msg util.Message) {
 	s.INCREMENT_CLOCK()
+	logger.Logger.Printf("[Server %d] Received a vote from server %d\n", s.Id, msg.SenderId)
 	if s.IsRequesting {
 		s.voters = append(s.voters, msg.SenderId)
 		if len(s.voters) >= len(s.Connections)/2 {
@@ -64,8 +66,34 @@ func (s *Server) onReceiveVote(msg util.Message) {
 // onReceiveRescind handles the rescind vote message
 func (s *Server) onReceiveRescind(msg util.Message) {
 	s.INCREMENT_CLOCK()
+	logger.Logger.Printf("[Server %d] Received a rescind request from server %d\n", s.Id, msg.SenderId)
 	if s.IsRequesting {
-		s.ReleaseVote(msg.SenderId)
+		s.ReleaseVote(msg.SenderId, true)
+	}
+}
+
+// onReceiveRelease handles the release vote message
+func (s *Server) onReceiveRelease(msg util.Message, rescind bool) {
+	s.INCREMENT_CLOCK()
+	logger.Logger.Printf("[Server %d] Received a release from server %d\n", s.Id, msg.SenderId)
+	if !rescind {
+		// received normal release message
+		if msg.SenderId == s.voteTo.SenderId {
+			s.voteTo = nil
+			if s.Queue.Peek() != nil {
+				msg := s.Queue.Pop()
+				s.voteTo = &msg
+				s.Vote(msg.SenderId)
+			}
+		}
+	} else {
+		// received rescind release message
+		if msg.SenderId == s.voteTo.SenderId {
+			s.Queue.Push(*s.voteTo)
+			msg := s.Queue.Pop()
+			s.voteTo = &msg
+			s.Vote(msg.SenderId)
+		}
 	}
 }
 
@@ -83,17 +111,23 @@ func removeVoter(voters []int, voter int) []int {
 // ReleaseAllVotes releases all votes
 func (s *Server) ReleaseAllVotes() {
 	for _, voter := range s.voters {
-		s.ReleaseVote(voter)
+		s.ReleaseVote(voter, false)
 	}
 }
 
 // ReleaseVote releases the vote for the given machine id
-func (s *Server) ReleaseVote(toMachineId int) {
+func (s *Server) ReleaseVote(toMachineId int, rescind bool) {
 	s.voters = removeVoter(s.voters, toMachineId)
 	msg := util.Message{
 		SenderId:    s.Id,
-		MessageType: util.RELEASE,
 		ScalarClock: s.ScalarClock,
+	}
+	if rescind {
+		msg.MessageType = util.RESCIND_RELEASE
+		logger.Logger.Printf("[Server %d] Release rescind vote for server %d\n", s.Id, toMachineId)
+	} else {
+		msg.MessageType = util.RELEASE
+		logger.Logger.Printf("[Server %d] Release vote for server %d\n", s.Id, toMachineId)
 	}
 	s.Connections[toMachineId] <- msg
 }
@@ -105,6 +139,7 @@ func (s *Server) RescindVote(toMachineId int) {
 		MessageType: util.RESCIND,
 		ScalarClock: s.ScalarClock,
 	}
+	logger.Logger.Printf("[Server %d] Rescind vote for server %d\n", s.Id, toMachineId)
 	s.Connections[toMachineId] <- rescindMsg
 }
 
@@ -115,6 +150,7 @@ func (s *Server) Vote(toMachineId int) {
 		MessageType: util.VOTE,
 		ScalarClock: s.ScalarClock,
 	}
+	logger.Logger.Printf("[Server %d] Vote for server %d\n", s.Id, toMachineId)
 	s.Connections[toMachineId] <- voteMsg
 }
 
@@ -143,6 +179,10 @@ func (s *Server) Listen() {
 				s.onReceiveVote(msg)
 			case util.RESCIND:
 				s.onReceiveRescind(msg)
+			case util.RELEASE:
+				s.onReceiveRelease(msg, false)
+			case util.RESCIND_RELEASE:
+				s.onReceiveRelease(msg, true)
 			}
 		}
 	}
