@@ -1,7 +1,7 @@
 package sharedpriorityqueue
 
 import (
-	util2 "homework/hw2/assignment1/util"
+	"homework/hw2/assignment1/util"
 	"homework/logger"
 	"sync"
 	"time"
@@ -10,11 +10,11 @@ import (
 // Server represents a server in the distributed system
 type Server struct {
 	Id               int
-	Channel          chan util2.Message
-	Connections      map[int]chan util2.Message // map of server id to their message channel
-	Queue            util2.MsgPriorityQueue
+	Channel          chan util.Message
+	Connections      map[int]chan util.Message // map of server id to their message channel
+	Queue            util.MsgPriorityQueue
 	ScalarClock      int
-	pendingRequest   *util2.Message
+	pendingRequest   *util.Message
 	repliedServerIds []int
 	toReply          []int
 	mu               sync.Mutex
@@ -24,9 +24,9 @@ type Server struct {
 func NewServer(id int) *Server {
 	return &Server{
 		Id:               id,
-		Channel:          make(chan util2.Message),
-		Connections:      make(map[int]chan util2.Message),
-		Queue:            *util2.NewMsgPriorityQueue(),
+		Channel:          make(chan util.Message),
+		Connections:      make(map[int]chan util.Message),
+		Queue:            *util.NewMsgPriorityQueue(),
 		ScalarClock:      0,
 		pendingRequest:   nil,
 		repliedServerIds: make([]int, 0),
@@ -35,7 +35,7 @@ func NewServer(id int) *Server {
 }
 
 // onReceiveRequest handles the request message
-func (s *Server) onReceiveRequest(msg util2.Message) {
+func (s *Server) onReceiveRequest(msg util.Message) {
 	s.INCREMENT_CLOCK()
 	s.Queue.Push(msg) // push the request to the queue
 	logger.Logger.Printf("[Server %d] Received a request from server %d\n", s.Id, msg.SenderId)
@@ -54,7 +54,7 @@ func (s *Server) onReceiveRequest(msg util2.Message) {
 }
 
 // onReceiveReply handles the reply message
-func (s *Server) onReceiveReply(msg util2.Message) {
+func (s *Server) onReceiveReply(msg util.Message) {
 	s.INCREMENT_CLOCK()
 	logger.Logger.Printf("[Server %d] Received reply from %d\n", s.Id, msg.SenderId)
 	if s.pendingRequest != nil {
@@ -78,7 +78,7 @@ func (s *Server) onReceiveReply(msg util2.Message) {
 }
 
 // onReceiveRelease handles the release message
-func (s *Server) onReceiveRelease(msg util2.Message) {
+func (s *Server) onReceiveRelease(msg util.Message) {
 	s.INCREMENT_CLOCK()
 	logger.Logger.Printf("[Server %d] Received release from %d\n", s.Id, msg.SenderId)
 	s.Queue.Pop()
@@ -107,9 +107,9 @@ func (s *Server) executeAndRelease() {
 func (s *Server) release() {
 	clock := s.INCREMENT_CLOCK()
 	logger.Logger.Printf("[Server %d] Released the critical section\n", s.Id)
-	release := util2.Message{
+	release := util.Message{
 		SenderId:    s.Id,
-		MessageType: util2.RELEASE,
+		MessageType: util.RELEASE,
 		ScalarClock: clock,
 	}
 	for _, outChannel := range s.Connections {
@@ -118,7 +118,7 @@ func (s *Server) release() {
 }
 
 // Check if the server can reply to the request
-func (s *Server) canReply(msg util2.Message) bool {
+func (s *Server) canReply(msg util.Message) bool {
 	// check if the request is at the top of the queue
 	if s.pendingRequest == nil || s.pendingRequest.IsLargerThan(msg) {
 		return true
@@ -133,12 +133,12 @@ func (s *Server) canReply(msg util2.Message) bool {
 }
 
 // Increment the scalar clock and reply to the server
-func (s *Server) reply(msg util2.Message) {
+func (s *Server) reply(msg util.Message) {
 	clock := s.INCREMENT_CLOCK()
 	logger.Logger.Printf("[Server %d] Replied to server %d\n", s.Id, msg.SenderId)
-	reply := util2.Message{
+	reply := util.Message{
 		SenderId:    s.Id,
-		MessageType: util2.REPLY,
+		MessageType: util.REPLY,
 		ScalarClock: clock,
 	}
 	s.Connections[msg.SenderId] <- reply
@@ -150,11 +150,11 @@ func (s *Server) Listen() {
 		select {
 		case msg := <-s.Channel:
 			switch msg.MessageType {
-			case util2.REQUEST:
+			case util.REQUEST:
 				s.onReceiveRequest(msg)
-			case util2.REPLY:
+			case util.REPLY:
 				s.onReceiveReply(msg)
-			case util2.RELEASE:
+			case util.RELEASE:
 				s.onReceiveRelease(msg)
 			}
 		}
@@ -178,9 +178,9 @@ func (s *Server) SendRequestWithInterval(second int) {
 
 		// make a new request
 		clock := s.INCREMENT_CLOCK()
-		msg := util2.Message{
+		msg := util.Message{
 			SenderId:    s.Id,
-			MessageType: util2.REQUEST,
+			MessageType: util.REQUEST,
 			ScalarClock: clock,
 		}
 		logger.Logger.Printf("[Server %d] Sent a request to access the critical section\n", s.Id)

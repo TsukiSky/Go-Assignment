@@ -2,7 +2,9 @@ package voting
 
 import (
 	"homework/hw2/assignment1/util"
+	"homework/logger"
 	"sync"
+	"time"
 )
 
 type Server struct {
@@ -14,6 +16,8 @@ type Server struct {
 	voters       []int
 	IsRequesting bool
 	IsExecuting  bool
+	IsRescinding bool
+	voteTo       *util.Message
 	mu           sync.Mutex
 }
 
@@ -28,20 +32,20 @@ func NewServer(id int) *Server {
 		voters:       make([]int, 0),
 		IsRequesting: false,
 		IsExecuting:  false,
+		IsRescinding: false,
+		voteTo:       nil,
 	}
 }
 
 // onReceiveRequest handles the request message
 func (s *Server) onReceiveRequest(msg util.Message) {
 	s.INCREMENT_CLOCK()
-	peek := s.Queue.Peek()
-	if peek == nil {
+	if s.voteTo == nil {
 		// msg is the only request in the queue
-		s.Vote(msg)
-	} else if peek.IsLargerThan(msg) {
+		s.Vote(msg.SenderId)
+	} else if s.voteTo.IsLargerThan(msg) {
 		// msg is the smallest request in the queue
-		s.RescindVote(*peek)
-		s.Vote(msg)
+		s.RescindVote(s.voteTo.SenderId) // rescind and wait for release
 	}
 	s.Queue.Push(msg) // push the request to the queue
 }
@@ -61,7 +65,7 @@ func (s *Server) onReceiveVote(msg util.Message) {
 func (s *Server) onReceiveRescind(msg util.Message) {
 	s.INCREMENT_CLOCK()
 	if s.IsRequesting {
-		s.voters = removeVoter(s.voters, msg.SenderId)
+		s.ReleaseVote(msg.SenderId)
 	}
 }
 
@@ -78,35 +82,70 @@ func removeVoter(voters []int, voter int) []int {
 
 // ReleaseAllVotes releases all votes
 func (s *Server) ReleaseAllVotes() {
-	// TODO: implement
+	for _, voter := range s.voters {
+		s.ReleaseVote(voter)
+	}
 }
 
 // ReleaseVote releases the vote for the given machine id
 func (s *Server) ReleaseVote(toMachineId int) {
-	// TODO: implement
+	s.voters = removeVoter(s.voters, toMachineId)
+	msg := util.Message{
+		SenderId:    s.Id,
+		MessageType: util.RELEASE,
+		ScalarClock: s.ScalarClock,
+	}
+	s.Connections[toMachineId] <- msg
 }
 
 // RescindVote rescinds the vote for the given message
-func (s *Server) RescindVote(msg util.Message) {
-	// TODO: implement
+func (s *Server) RescindVote(toMachineId int) {
+	rescindMsg := util.Message{
+		SenderId:    s.Id,
+		MessageType: util.RESCIND,
+		ScalarClock: s.ScalarClock,
+	}
+	s.Connections[toMachineId] <- rescindMsg
 }
 
 // Vote votes for the given message
-func (s *Server) Vote(msg util.Message) {
-	// TODO: implement
+func (s *Server) Vote(toMachineId int) {
+	voteMsg := util.Message{
+		SenderId:    s.Id,
+		MessageType: util.VOTE,
+		ScalarClock: s.ScalarClock,
+	}
+	s.Connections[toMachineId] <- voteMsg
 }
 
 // Execute the critical section
 func (s *Server) Execute() {
-	// TODO: implement
+	clock := s.INCREMENT_CLOCK()
+	logger.Logger.Printf("[Server %d] Executing the critical section\n", s.Id, clock)
+	time.Sleep(1 * time.Second)
 }
 
+// Activate activates the server
 func (s *Server) Activate() {
-	// TODO: implement
+	logger.Logger.Printf("[Server %d] Activated\n", s.Id)
+	go s.Listen()
 }
 
+// Listen listens to the channel
 func (s *Server) Listen() {
-	// TODO: implement
+	for {
+		select {
+		case msg := <-s.Channel:
+			switch msg.MessageType {
+			case util.REQUEST:
+				s.onReceiveRequest(msg)
+			case util.VOTE:
+				s.onReceiveVote(msg)
+			case util.RESCIND:
+				s.onReceiveRescind(msg)
+			}
+		}
+	}
 }
 
 // INCREMENT_CLOCK increase the scalar clock

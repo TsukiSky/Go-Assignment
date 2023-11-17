@@ -1,7 +1,7 @@
 package optimizedsharedpriorityqueue
 
 import (
-	util2 "homework/hw2/assignment1/util"
+	"homework/hw2/assignment1/util"
 	"homework/logger"
 	"sync"
 	"time"
@@ -10,11 +10,11 @@ import (
 // Server represents a server in the distributed system
 type Server struct {
 	Id             int
-	Channel        chan util2.Message
-	Connections    map[int]chan util2.Message // map of server id to their message channel
-	Queue          util2.MsgPriorityQueue
+	Channel        chan util.Message
+	Connections    map[int]chan util.Message // map of server id to their message channel
+	Queue          util.MsgPriorityQueue
 	ScalarClock    int
-	pendingRequest *util2.Message
+	pendingRequest *util.Message
 	replyCount     int
 	toReply        []int
 	mu             sync.Mutex
@@ -24,9 +24,9 @@ type Server struct {
 func NewServer(id int) *Server {
 	return &Server{
 		Id:             id,
-		Channel:        make(chan util2.Message),
-		Connections:    make(map[int]chan util2.Message),
-		Queue:          *util2.NewMsgPriorityQueue(),
+		Channel:        make(chan util.Message),
+		Connections:    make(map[int]chan util.Message),
+		Queue:          *util.NewMsgPriorityQueue(),
 		ScalarClock:    0,
 		pendingRequest: nil,
 		replyCount:     0,
@@ -35,7 +35,7 @@ func NewServer(id int) *Server {
 }
 
 // onReceiveRequest handles the request message
-func (s *Server) onReceiveRequest(msg util2.Message) {
+func (s *Server) onReceiveRequest(msg util.Message) {
 	s.INCREMENT_CLOCK()
 	logger.Logger.Printf("[Server %d] Received a request from server %d\n", s.Id, msg.SenderId)
 	if s.canReply(msg) {
@@ -47,7 +47,7 @@ func (s *Server) onReceiveRequest(msg util2.Message) {
 }
 
 // onReceiveReply handles the reply message
-func (s *Server) onReceiveReply(msg util2.Message) {
+func (s *Server) onReceiveReply(msg util.Message) {
 	s.INCREMENT_CLOCK()
 	logger.Logger.Printf("[Server %d] Received reply from %d\n", s.Id, msg.SenderId)
 	if s.pendingRequest != nil {
@@ -78,7 +78,7 @@ func (s *Server) executeAndReply() {
 }
 
 // Check if the server can reply to the request
-func (s *Server) canReply(msg util2.Message) bool {
+func (s *Server) canReply(msg util.Message) bool {
 	// check if the request is at the top of the queue
 	if s.pendingRequest == nil {
 		return true
@@ -91,9 +91,9 @@ func (s *Server) canReply(msg util2.Message) bool {
 func (s *Server) reply(toServerId int) {
 	clock := s.INCREMENT_CLOCK()
 	logger.Logger.Printf("[Server %d] Replied to server %d\n", s.Id, toServerId)
-	reply := util2.Message{
+	reply := util.Message{
 		SenderId:    s.Id,
-		MessageType: util2.REPLY,
+		MessageType: util.REPLY,
 		ScalarClock: clock,
 	}
 	s.Connections[toServerId] <- reply
@@ -105,9 +105,9 @@ func (s *Server) Listen() {
 		select {
 		case msg := <-s.Channel:
 			switch msg.MessageType {
-			case util2.REQUEST:
+			case util.REQUEST:
 				s.onReceiveRequest(msg)
-			case util2.REPLY:
+			case util.REPLY:
 				s.onReceiveReply(msg)
 			}
 		}
@@ -131,9 +131,9 @@ func (s *Server) SendRequestWithInterval(second int) {
 
 		// make a new request
 		clock := s.INCREMENT_CLOCK()
-		msg := util2.Message{
+		msg := util.Message{
 			SenderId:    s.Id,
-			MessageType: util2.REQUEST,
+			MessageType: util.REQUEST,
 			ScalarClock: clock,
 		}
 		s.pendingRequest = &msg
