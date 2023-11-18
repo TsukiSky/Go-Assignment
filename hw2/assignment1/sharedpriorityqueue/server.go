@@ -18,6 +18,8 @@ type Server struct {
 	repliedServerIds []int
 	toReply          []int
 	mu               sync.Mutex
+	IsOneTimeRequest bool
+	waitGroup        *sync.WaitGroup
 }
 
 // NewServer returns a new server with the given id
@@ -31,7 +33,13 @@ func NewServer(id int) *Server {
 		pendingRequest:   nil,
 		repliedServerIds: make([]int, 0),
 		toReply:          make([]int, 0),
+		IsOneTimeRequest: false,
 	}
+}
+
+// SetWaitGroup sets the wait group
+func (s *Server) SetWaitGroup(group *sync.WaitGroup) {
+	s.waitGroup = group
 }
 
 // onReceiveRequest handles the request message
@@ -90,8 +98,8 @@ func (s *Server) onReceiveRelease(msg util.Message) {
 
 // Execute the critical section
 func (s *Server) execute() {
-	clock := s.INCREMENT_CLOCK()
-	logger.Logger.Printf("[Server %d] Executing the critical section\n", s.Id, clock)
+	s.INCREMENT_CLOCK()
+	logger.Logger.Printf("[Server %d] Executing the critical section\n", s.Id)
 	time.Sleep(1 * time.Second)
 }
 
@@ -101,6 +109,9 @@ func (s *Server) executeAndRelease() {
 	s.Queue.Pop()
 	s.ResetRequest()
 	s.release()
+	if s.IsOneTimeRequest {
+		s.waitGroup.Done()
+	}
 }
 
 // Release the critical section
@@ -141,7 +152,9 @@ func (s *Server) reply(msg util.Message) {
 		MessageType: util.REPLY,
 		ScalarClock: clock,
 	}
-	s.Connections[msg.SenderId] <- reply
+	go func() {
+		s.Connections[msg.SenderId] <- reply
+	}()
 }
 
 // Listen listens to the channel and handles the incoming message
@@ -161,11 +174,25 @@ func (s *Server) Listen() {
 	}
 }
 
-// Activate activates the server
-func (s *Server) Activate() {
-	logger.Logger.Printf("[Server %d] Activated\n", s.Id)
-	go s.Listen()                   // start listening to new messages
-	go s.SendRequestWithInterval(5) // send request with interval
+// ActivateAsPermanentRequester activates the server as a permanent requester
+func (s *Server) ActivateAsPermanentRequester() {
+	logger.Logger.Printf("[Server %d] Activated as Permanent Requester\n", s.Id)
+	go s.Listen()
+	go s.SendRequestWithInterval(5)
+}
+
+// ActivateAsListener activates the server as a listener
+func (s *Server) ActivateAsListener() {
+	logger.Logger.Printf("[Server %d] Activated as Listener\n", s.Id)
+	go s.Listen()
+}
+
+// ActivateAsOneTimeRequester activates the server as a one-time requester
+func (s *Server) ActivateAsOneTimeRequester() {
+	logger.Logger.Printf("[Server %d] Activated as One-time Requester\n", s.Id)
+	s.IsOneTimeRequest = true
+	go s.Listen()
+	go s.Request()
 }
 
 // SendRequestWithInterval sends the request with the given interval
@@ -174,23 +201,30 @@ func (s *Server) SendRequestWithInterval(second int) {
 		time.Sleep(time.Duration(second) * time.Second)
 		if s.hasOngoingRequest() {
 			continue
+		} else {
+			// make a new request
+			s.Request()
 		}
+	}
+}
 
-		// make a new request
-		clock := s.INCREMENT_CLOCK()
-		msg := util.Message{
-			SenderId:    s.Id,
-			MessageType: util.REQUEST,
-			ScalarClock: clock,
-		}
-		logger.Logger.Printf("[Server %d] Sent a request to access the critical section\n", s.Id)
-		s.pendingRequest = &msg
-		s.Queue.Push(msg)
-		s.repliedServerIds = make([]int, 0)
+func (s *Server) Request() {
+	// make a new request
+	clock := s.INCREMENT_CLOCK()
+	msg := util.Message{
+		SenderId:    s.Id,
+		MessageType: util.REQUEST,
+		ScalarClock: clock,
+	}
+	logger.Logger.Printf("[Server %d] Sent a request to access the critical section\n", s.Id)
+	s.pendingRequest = &msg
+	s.Queue.Push(msg)
+	s.repliedServerIds = make([]int, 0)
+	go func() {
 		for _, msgChannel := range s.Connections {
 			msgChannel <- msg
 		}
-	}
+	}()
 }
 
 // INCREMENT_CLOCK increase the scalar clock
@@ -204,8 +238,7 @@ func (s *Server) INCREMENT_CLOCK() int {
 
 // ResetRequest resets the pending request and reply count
 func (s *Server) ResetRequest() {
-	//s.pendingRequest = nil
-	//s.replyCount = 0
+	s.pendingRequest = nil
 }
 
 // return true if the server has pending request, otherwise return false

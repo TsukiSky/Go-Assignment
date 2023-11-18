@@ -8,18 +8,20 @@ import (
 )
 
 type Server struct {
-	Id              int
-	Channel         chan util.Message
-	Connections     map[int]chan util.Message // map of server id to their message channel
-	Queue           util.MsgPriorityQueue
-	ScalarClock     int
-	voters          []int
-	IsRequesting    bool
-	IsExecuting     bool
-	IsRescinding    bool
-	voteTo          *util.Message
-	archivedRescind []int
-	mu              sync.Mutex
+	Id               int
+	Channel          chan util.Message
+	Connections      map[int]chan util.Message // map of server id to their message channel
+	Queue            util.MsgPriorityQueue
+	ScalarClock      int
+	voters           []int
+	IsRequesting     bool
+	IsExecuting      bool
+	IsRescinding     bool
+	voteTo           *util.Message
+	archivedRescind  []int
+	mu               sync.Mutex
+	IsOneTimeRequest bool
+	waitGroup        *sync.WaitGroup
 }
 
 // NewServer returns a new server with the given id
@@ -28,18 +30,24 @@ func NewServer(id int) *Server {
 	channel := make(chan util.Message)
 	connection[id] = channel
 	return &Server{
-		Id:              id,
-		Channel:         channel,
-		Connections:     connection,
-		Queue:           *util.NewMsgPriorityQueue(),
-		ScalarClock:     0,
-		voters:          make([]int, 0),
-		IsRequesting:    false,
-		IsExecuting:     false,
-		IsRescinding:    false,
-		voteTo:          nil,
-		archivedRescind: make([]int, 0),
+		Id:               id,
+		Channel:          channel,
+		Connections:      connection,
+		Queue:            *util.NewMsgPriorityQueue(),
+		ScalarClock:      0,
+		voters:           make([]int, 0),
+		IsRequesting:     false,
+		IsExecuting:      false,
+		IsRescinding:     false,
+		voteTo:           nil,
+		archivedRescind:  make([]int, 0),
+		IsOneTimeRequest: false,
 	}
+}
+
+// SetWaitGroup sets the wait group
+func (s *Server) SetWaitGroup(group *sync.WaitGroup) {
+	s.waitGroup = group
 }
 
 // onReceiveRequest handles the request message
@@ -209,13 +217,30 @@ func (s *Server) Execute() {
 func (s *Server) ExecuteAndRelease() {
 	s.Execute()
 	s.ReleaseAllVotes()
+	if s.IsOneTimeRequest {
+		s.waitGroup.Done()
+	}
 }
 
-// Activate activates the server
-func (s *Server) Activate() {
-	logger.Logger.Printf("[Server %d] Activated\n", s.Id)
+// ActivateAsPermanentRequester activates the server as a permanent requester
+func (s *Server) ActivateAsPermanentRequester() {
+	logger.Logger.Printf("[Server %d] Activated as Permanent Requester\n", s.Id)
 	go s.Listen()
-	go s.RequestWithInterval(5)
+	go s.SendRequestWithInterval(5)
+}
+
+// ActivateAsListener activates the server as a listener
+func (s *Server) ActivateAsListener() {
+	logger.Logger.Printf("[Server %d] Activated as Listener\n", s.Id)
+	go s.Listen()
+}
+
+// ActivateAsOneTimeRequester activates the server as a one-time requester
+func (s *Server) ActivateAsOneTimeRequester() {
+	logger.Logger.Printf("[Server %d] Activated as One-time Requester\n", s.Id)
+	s.IsOneTimeRequest = true
+	go s.Listen()
+	go s.Request()
 }
 
 // Listen listens to the channel
@@ -248,6 +273,7 @@ func (s *Server) INCREMENT_CLOCK() int {
 	return newClock
 }
 
+// Request sends the request
 func (s *Server) Request() {
 	clock := s.INCREMENT_CLOCK()
 	s.IsRequesting = true
@@ -266,8 +292,8 @@ func (s *Server) Request() {
 	}()
 }
 
-// RequestWithInterval sends the request with the given interval
-func (s *Server) RequestWithInterval(second int) {
+// SendRequestWithInterval sends the request with the given interval
+func (s *Server) SendRequestWithInterval(second int) {
 	for {
 		time.Sleep(time.Duration(second) * time.Second)
 		if s.IsRequesting || s.IsExecuting {
@@ -277,7 +303,4 @@ func (s *Server) RequestWithInterval(second int) {
 			s.Request()
 		}
 	}
-	//time.Sleep(time.Duration(second) * time.Second)
-	// make a new request
-	//s.Request()
 }
