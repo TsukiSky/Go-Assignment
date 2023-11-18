@@ -2,15 +2,30 @@ package main
 
 import (
 	"homework/hw2/logger"
-	optimizedsharedpriorityqueue2 "homework/hw2/optimizedsharedpriorityqueue"
-	sharedpriorityqueue2 "homework/hw2/sharedpriorityqueue"
-	voting2 "homework/hw2/voting"
+	"homework/hw2/optimizedsharedpriorityqueue"
+	"homework/hw2/sharedpriorityqueue"
+	"homework/hw2/voting"
+	"strconv"
 	"sync"
+	"time"
 )
 
 type RunningMode int
 
 type Algorithm int
+
+func (a Algorithm) String() string {
+	switch a {
+	case SHARED_PRIORITY_QUEUE:
+		return "Shared Priority Queue"
+	case OPTIMIZED_SHARED_PRIORITY_QUEUE:
+		return "Optimized Shared Priority Queue (Ricart and Agrawala’s Optimization)"
+	case VOTING:
+		return "Voting Protocol"
+	default:
+		return "Unknown Algorithm"
+	}
+}
 
 const (
 	PERFORMANCE_COMPARING_MODE RunningMode = iota
@@ -37,9 +52,11 @@ func main() {
 		runInPerformanceMode(SHARED_PRIORITY_QUEUE)
 		runInPerformanceMode(OPTIMIZED_SHARED_PRIORITY_QUEUE)
 		runInPerformanceMode(VOTING)
+		logger.PerformanceLogger.Println("########################################################################################")
 	} else if runningMode == SINGLE_PERFORMANCE_MODE {
 		// run only one algorithm in performance comparing mode
 		runInPerformanceMode(algorithm)
+		logger.PerformanceLogger.Println("########################################################################################")
 	} else {
 		// run only one algorithm in permanent mode
 		runInPermanentMode(algorithm)
@@ -47,66 +64,74 @@ func main() {
 }
 
 func runInPerformanceMode(algorithm Algorithm) {
+	logger.InitPerformanceLog("hw2")
+	logger.PerformanceLogger.Println("########################################################################################")
+	logger.PerformanceLogger.Println("[Algorithm]: " + algorithm.String())
+	logger.PerformanceLogger.Println("[Number of Servers]: " + strconv.Itoa(numOfServers))
+	logger.PerformanceLogger.Println("[Number of Requesters]: " + strconv.Itoa(numOfRequesters))
+
+	var runningTime time.Duration
 	var waitGroup sync.WaitGroup
 	switch algorithm {
 	case SHARED_PRIORITY_QUEUE:
 		// run shared priority queue algorithm
-		logger.Init("hw2", "assignment_1.log", "assignment 1:")
-		cluster := sharedpriorityqueue2.NewCluster()
+		logger.Init("hw2", "shared_priority_queue.log", "shared priority queue:")
+		cluster := sharedpriorityqueue.NewCluster()
 		for i := 0; i < numOfServers; i++ {
-			cluster.AddServer(sharedpriorityqueue2.NewServer(i))
+			cluster.AddServer(sharedpriorityqueue.NewServer(i))
 		}
 		cluster.SetWaitGroup(&waitGroup)
-		cluster.ActivateInPerformanceComparingMode(numOfRequesters)
+		runningTime = cluster.ActivateInPerformanceComparingMode(numOfRequesters)
 
 	case OPTIMIZED_SHARED_PRIORITY_QUEUE:
 		// run optimized shared priority queue (Ricart and Agrawala's optimization) algorithm
-		logger.Init("hw2", "assignment_2.log", "assignment 2:")
-		cluster := optimizedsharedpriorityqueue2.NewCluster()
+		logger.Init("hw2", "optimized_shared_priority_queue.log", "optimized shared priority queue:")
+		cluster := optimizedsharedpriorityqueue.NewCluster()
 		for i := 0; i < numOfServers; i++ {
-			cluster.AddServer(optimizedsharedpriorityqueue2.NewServer(i))
+			cluster.AddServer(optimizedsharedpriorityqueue.NewServer(i))
 		}
 		cluster.SetWaitGroup(&waitGroup)
-		cluster.ActivateInPerformanceComparingMode(numOfRequesters)
+		runningTime = cluster.ActivateInPerformanceComparingMode(numOfRequesters)
 
 	case VOTING:
 		// run voting algorithm
-		logger.Init("hw2", "assignment_3.log", "assignment 3:")
-		cluster := voting2.NewCluster()
+		logger.Init("hw2", "voting_algorithm.log", "voting algorithm:")
+		cluster := voting.NewCluster()
 		for i := 0; i < numOfServers; i++ {
-			cluster.AddServer(voting2.NewServer(i))
+			cluster.AddServer(voting.NewServer(i))
 		}
 		cluster.SetWaitGroup(&waitGroup)
-		cluster.ActivateInPerformanceComparingMode(numOfRequesters)
+		runningTime = cluster.ActivateInPerformanceComparingMode(numOfRequesters)
 	}
+	logger.PerformanceLogger.Println("[Time (s)]: " + runningTime.String())
 }
 
 func runInPermanentMode(algorithm Algorithm) {
 	switch algorithm {
 	case SHARED_PRIORITY_QUEUE:
 		// run shared priority queue algorithm
-		logger.Init("hw2", "assignment_1.log", "assignment 1:")
-		cluster := sharedpriorityqueue2.NewCluster()
+		logger.Init("hw2", "shared_priority_queue.log", " shared priority queue:")
+		cluster := sharedpriorityqueue.NewCluster()
 		for i := 0; i < numOfServers; i++ {
-			cluster.AddServer(sharedpriorityqueue2.NewServer(i))
+			cluster.AddServer(sharedpriorityqueue.NewServer(i))
 		}
 		cluster.ActivateInPerformanceComparingMode(numOfRequesters)
 
 	case OPTIMIZED_SHARED_PRIORITY_QUEUE:
 		// run optimized shared priority queue (Ricart and Agrawala's optimization) algorithm
-		logger.Init("hw2", "assignment_2.log", "assignment 2:")
-		cluster := optimizedsharedpriorityqueue2.NewCluster()
+		logger.Init("hw2", "optimized_shared_priority_queue.log", "optimized shared priority queue:")
+		cluster := optimizedsharedpriorityqueue.NewCluster()
 		for i := 0; i < numOfServers; i++ {
-			cluster.AddServer(optimizedsharedpriorityqueue2.NewServer(i))
+			cluster.AddServer(optimizedsharedpriorityqueue.NewServer(i))
 		}
 		cluster.Activate(numOfRequesters)
 
 	case VOTING:
 		// run voting algorithm
-		logger.Init("hw2", "assignment_3.log", "assignment 3:")
-		cluster := voting2.NewCluster()
+		logger.Init("hw2", "voting_algorithm.log", "voting algorithm:")
+		cluster := voting.NewCluster()
 		for i := 0; i < numOfServers; i++ {
-			cluster.AddServer(voting2.NewServer(i))
+			cluster.AddServer(voting.NewServer(i))
 		}
 		cluster.Activate(numOfRequesters)
 	}
