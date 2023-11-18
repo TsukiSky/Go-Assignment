@@ -10,6 +10,13 @@ import (
 	"time"
 )
 
+const (
+	runningMode     = PERFORMANCE_COMPARING_MODE
+	algorithm       = OPTIMIZED_SHARED_PRIORITY_QUEUE
+	numOfServers    = 15
+	numOfRequesters = 10
+)
+
 type RunningMode int
 
 type Algorithm int
@@ -37,13 +44,6 @@ const (
 	SHARED_PRIORITY_QUEUE Algorithm = iota
 	OPTIMIZED_SHARED_PRIORITY_QUEUE
 	VOTING
-)
-
-const (
-	runningMode     = PERFORMANCE_COMPARING_MODE
-	algorithm       = OPTIMIZED_SHARED_PRIORITY_QUEUE
-	numOfServers    = 15
-	numOfRequesters = 10
 )
 
 func main() {
