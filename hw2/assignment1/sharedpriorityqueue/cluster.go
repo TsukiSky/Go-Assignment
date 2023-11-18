@@ -46,7 +46,9 @@ func (c *Cluster) Activate(numOfPermanentRequester int) {
 	select {}
 }
 
-func (c *Cluster) ActivateInPerformanceComparingMode(numOfOneTimeRequesters int) {
+// ActivateInPerformanceComparingMode activates all servers in the cluster in performance comparing mode
+// It returns the time duration of the whole process from the start until the last access to the critical section
+func (c *Cluster) ActivateInPerformanceComparingMode(numOfOneTimeRequesters int) time.Duration {
 	if numOfOneTimeRequesters > len(c.Servers) {
 		panic("number of one time requesters is larger than the total number of servers")
 	}
@@ -66,5 +68,5 @@ func (c *Cluster) ActivateInPerformanceComparingMode(numOfOneTimeRequesters int)
 	}
 	c.waitGroup.Wait()
 	end := time.Now()
-	println("Time elapsed:", end.Sub(start))
+	return end.Sub(start)
 }
