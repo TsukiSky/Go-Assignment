@@ -1,10 +1,10 @@
 package main
 
 import (
-	"homework/hw2/assignment1/optimizedsharedpriorityqueue"
-	"homework/hw2/assignment1/sharedpriorityqueue"
-	"homework/hw2/assignment1/voting"
-	"homework/logger"
+	"homework/hw2/logger"
+	optimizedsharedpriorityqueue2 "homework/hw2/optimizedsharedpriorityqueue"
+	sharedpriorityqueue2 "homework/hw2/sharedpriorityqueue"
+	voting2 "homework/hw2/voting"
 	"sync"
 )
 
@@ -52,9 +52,9 @@ func runInPerformanceMode(algorithm Algorithm) {
 	case SHARED_PRIORITY_QUEUE:
 		// run shared priority queue algorithm
 		logger.Init("hw2", "assignment_1.log", "assignment 1:")
-		cluster := sharedpriorityqueue.NewCluster()
+		cluster := sharedpriorityqueue2.NewCluster()
 		for i := 0; i < numOfServers; i++ {
-			cluster.AddServer(sharedpriorityqueue.NewServer(i))
+			cluster.AddServer(sharedpriorityqueue2.NewServer(i))
 		}
 		cluster.SetWaitGroup(&waitGroup)
 		cluster.ActivateInPerformanceComparingMode(numOfRequesters)
@@ -62,9 +62,9 @@ func runInPerformanceMode(algorithm Algorithm) {
 	case OPTIMIZED_SHARED_PRIORITY_QUEUE:
 		// run optimized shared priority queue (Ricart and Agrawala's optimization) algorithm
 		logger.Init("hw2", "assignment_2.log", "assignment 2:")
-		cluster := optimizedsharedpriorityqueue.NewCluster()
+		cluster := optimizedsharedpriorityqueue2.NewCluster()
 		for i := 0; i < numOfServers; i++ {
-			cluster.AddServer(optimizedsharedpriorityqueue.NewServer(i))
+			cluster.AddServer(optimizedsharedpriorityqueue2.NewServer(i))
 		}
 		cluster.SetWaitGroup(&waitGroup)
 		cluster.ActivateInPerformanceComparingMode(numOfRequesters)
@@ -72,9 +72,9 @@ func runInPerformanceMode(algorithm Algorithm) {
 	case VOTING:
 		// run voting algorithm
 		logger.Init("hw2", "assignment_3.log", "assignment 3:")
-		cluster := voting.NewCluster()
+		cluster := voting2.NewCluster()
 		for i := 0; i < numOfServers; i++ {
-			cluster.AddServer(voting.NewServer(i))
+			cluster.AddServer(voting2.NewServer(i))
 		}
 		cluster.SetWaitGroup(&waitGroup)
 		cluster.ActivateInPerformanceComparingMode(numOfRequesters)
@@ -86,27 +86,27 @@ func runInPermanentMode(algorithm Algorithm) {
 	case SHARED_PRIORITY_QUEUE:
 		// run shared priority queue algorithm
 		logger.Init("hw2", "assignment_1.log", "assignment 1:")
-		cluster := sharedpriorityqueue.NewCluster()
+		cluster := sharedpriorityqueue2.NewCluster()
 		for i := 0; i < numOfServers; i++ {
-			cluster.AddServer(sharedpriorityqueue.NewServer(i))
+			cluster.AddServer(sharedpriorityqueue2.NewServer(i))
 		}
 		cluster.ActivateInPerformanceComparingMode(numOfRequesters)
 
 	case OPTIMIZED_SHARED_PRIORITY_QUEUE:
 		// run optimized shared priority queue (Ricart and Agrawala's optimization) algorithm
 		logger.Init("hw2", "assignment_2.log", "assignment 2:")
-		cluster := optimizedsharedpriorityqueue.NewCluster()
+		cluster := optimizedsharedpriorityqueue2.NewCluster()
 		for i := 0; i < numOfServers; i++ {
-			cluster.AddServer(optimizedsharedpriorityqueue.NewServer(i))
+			cluster.AddServer(optimizedsharedpriorityqueue2.NewServer(i))
 		}
 		cluster.Activate(numOfRequesters)
 
 	case VOTING:
 		// run voting algorithm
 		logger.Init("hw2", "assignment_3.log", "assignment 3:")
-		cluster := voting.NewCluster()
+		cluster := voting2.NewCluster()
 		for i := 0; i < numOfServers; i++ {
-			cluster.AddServer(voting.NewServer(i))
+			cluster.AddServer(voting2.NewServer(i))
 		}
 		cluster.Activate(numOfRequesters)
 	}

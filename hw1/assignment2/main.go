@@ -2,7 +2,7 @@ package main
 
 import (
 	"homework/hw1/assignment2/bully"
-	"homework/logger"
+	"homework/hw1/logger"
 )
 
 // Use Bully algorithm to implement a working version of replica synchronization.

@@ -3,7 +3,7 @@ package main
 import (
 	"homework/hw1/assignment1/lamportclock"
 	"homework/hw1/assignment1/vectorclock"
-	"homework/logger"
+	"homework/hw1/logger"
 )
 
 // Consider some client-server architecture as follows.

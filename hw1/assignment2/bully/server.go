@@ -1,7 +1,7 @@
 package bully
 
 import (
-	"homework/logger"
+	"homework/hw1/logger"
 	"math/rand"
 	"time"
 )

@@ -1,7 +1,7 @@
-package voting
+package sharedpriorityqueue
 
 import (
-	"homework/logger"
+	"homework/hw2/logger"
 	"sync"
 	"time"
 )

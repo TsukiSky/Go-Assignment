@@ -1,23 +1,23 @@
 package voting
 
 import (
-	"homework/hw2/assignment1/util"
-	"homework/logger"
+	"homework/hw2/logger"
+	util2 "homework/hw2/util"
 	"sync"
 	"time"
 )
 
 type Server struct {
 	Id               int
-	Channel          chan util.Message
-	Connections      map[int]chan util.Message // map of server id to their message channel
-	Queue            util.MsgPriorityQueue
+	Channel          chan util2.Message
+	Connections      map[int]chan util2.Message // map of server id to their message channel
+	Queue            util2.MsgPriorityQueue
 	ScalarClock      int
 	voters           []int
 	IsRequesting     bool
 	IsExecuting      bool
 	IsRescinding     bool
-	voteTo           *util.Message
+	voteTo           *util2.Message
 	archivedRescind  []int
 	mu               sync.Mutex
 	IsOneTimeRequest bool
@@ -26,14 +26,14 @@ type Server struct {
 
 // NewServer returns a new server with the given id
 func NewServer(id int) *Server {
-	connection := make(map[int]chan util.Message)
-	channel := make(chan util.Message)
+	connection := make(map[int]chan util2.Message)
+	channel := make(chan util2.Message)
 	connection[id] = channel
 	return &Server{
 		Id:               id,
 		Channel:          channel,
 		Connections:      connection,
-		Queue:            *util.NewMsgPriorityQueue(),
+		Queue:            *util2.NewMsgPriorityQueue(),
 		ScalarClock:      0,
 		voters:           make([]int, 0),
 		IsRequesting:     false,
@@ -51,7 +51,7 @@ func (s *Server) SetWaitGroup(group *sync.WaitGroup) {
 }
 
 // onReceiveRequest handles the request message
-func (s *Server) onReceiveRequest(msg util.Message) {
+func (s *Server) onReceiveRequest(msg util2.Message) {
 	s.INCREMENT_CLOCK()
 	logger.Logger.Printf("[Server %d] Received a vote request from server %d\n", s.Id, msg.SenderId)
 	if s.voteTo == nil {
@@ -70,7 +70,7 @@ func (s *Server) onReceiveRequest(msg util.Message) {
 }
 
 // onReceiveVote handles the vote message
-func (s *Server) onReceiveVote(msg util.Message) {
+func (s *Server) onReceiveVote(msg util2.Message) {
 	s.INCREMENT_CLOCK()
 	logger.Logger.Printf("[Server %d] Received a vote from server %d\n", s.Id, msg.SenderId)
 	if s.IsRequesting {
@@ -96,7 +96,7 @@ func (s *Server) onReceiveVote(msg util.Message) {
 }
 
 // onReceiveRescind handles the rescind vote message
-func (s *Server) onReceiveRescind(msg util.Message) {
+func (s *Server) onReceiveRescind(msg util2.Message) {
 	s.INCREMENT_CLOCK()
 	logger.Logger.Printf("[Server %d] Received a rescind request from server %d\n", s.Id, msg.SenderId)
 
@@ -116,7 +116,7 @@ func (s *Server) onReceiveRescind(msg util.Message) {
 }
 
 // onReceiveRelease handles the release vote message
-func (s *Server) onReceiveRelease(msg util.Message, rescind bool) {
+func (s *Server) onReceiveRelease(msg util2.Message, rescind bool) {
 	s.INCREMENT_CLOCK()
 	logger.Logger.Printf("[Server %d] Received a release from server %d\n", s.Id, msg.SenderId)
 	if !rescind {
@@ -162,15 +162,15 @@ func (s *Server) ReleaseAllVotes() {
 func (s *Server) ReleaseVote(toMachineId int, rescind bool) {
 	clock := s.INCREMENT_CLOCK()
 	s.voters = removeVoter(s.voters, toMachineId)
-	msg := util.Message{
+	msg := util2.Message{
 		SenderId:    s.Id,
 		ScalarClock: clock,
 	}
 	if rescind {
-		msg.MessageType = util.RESCIND_RELEASE
+		msg.MessageType = util2.RESCIND_RELEASE
 		logger.Logger.Printf("[Server %d] Release rescind vote to server %d\n", s.Id, toMachineId)
 	} else {
-		msg.MessageType = util.RELEASE
+		msg.MessageType = util2.RELEASE
 		logger.Logger.Printf("[Server %d] Release vote to server %d\n", s.Id, toMachineId)
 	}
 	go func() {
@@ -180,9 +180,9 @@ func (s *Server) ReleaseVote(toMachineId int, rescind bool) {
 
 // RescindVote rescinds the vote for the given message
 func (s *Server) RescindVote(toMachineId int) {
-	rescindMsg := util.Message{
+	rescindMsg := util2.Message{
 		SenderId:    s.Id,
-		MessageType: util.RESCIND,
+		MessageType: util2.RESCIND,
 		ScalarClock: s.ScalarClock,
 	}
 	logger.Logger.Printf("[Server %d] Rescind vote to server %d\n", s.Id, toMachineId)
@@ -193,9 +193,9 @@ func (s *Server) RescindVote(toMachineId int) {
 
 // Vote votes for the given message
 func (s *Server) Vote(toMachineId int) {
-	voteMsg := util.Message{
+	voteMsg := util2.Message{
 		SenderId:    s.Id,
-		MessageType: util.VOTE,
+		MessageType: util2.VOTE,
 		ScalarClock: s.ScalarClock,
 	}
 	logger.Logger.Printf("[Server %d] Vote for server %d\n", s.Id, toMachineId)
@@ -249,15 +249,15 @@ func (s *Server) Listen() {
 		select {
 		case msg := <-s.Channel:
 			switch msg.MessageType {
-			case util.REQUEST:
+			case util2.REQUEST:
 				s.onReceiveRequest(msg)
-			case util.VOTE:
+			case util2.VOTE:
 				s.onReceiveVote(msg)
-			case util.RESCIND:
+			case util2.RESCIND:
 				s.onReceiveRescind(msg)
-			case util.RELEASE:
+			case util2.RELEASE:
 				s.onReceiveRelease(msg, false)
-			case util.RESCIND_RELEASE:
+			case util2.RESCIND_RELEASE:
 				s.onReceiveRelease(msg, true)
 			}
 		}
@@ -279,9 +279,9 @@ func (s *Server) Request() {
 	s.IsRequesting = true
 	logger.Logger.Printf("[Server %d] Sent a request to access the critical section\n", s.Id)
 
-	reqMsg := util.Message{
+	reqMsg := util2.Message{
 		SenderId:    s.Id,
-		MessageType: util.REQUEST,
+		MessageType: util2.REQUEST,
 		ScalarClock: clock,
 	}
 

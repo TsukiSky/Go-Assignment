@@ -1,7 +1,7 @@
 package vectorclock
 
 import (
-	"homework/logger"
+	"homework/hw1/logger"
 	"sync"
 	"time"
 )
