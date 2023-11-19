@@ -25,30 +25,31 @@ This homework implements three types of distributed mutual exclusion protocols, 
 
 The structure of this homework is:
 
-├─hw2 
-│  │  main.go 
-│  │  Programming_HW2_2023.pdf 
-│  │  readme.md 
+├─hw2  
+│  │  main.go  
+│  │  readme.md  
 │  │  
-│  ├─doc 
-│  ├─logger 
-│  │      logger.go 
+│  ├─doc  
+│  │      Programming_HW2_2023.pdf  
 │  │      
-│  ├─optimizedsharedpriorityqueue 
-│  │      cluster.go 
-│  │      server.go 
+│  ├─logger  
+│  │      logger.go  
 │  │      
-│  ├─sharedpriorityqueue 
-│  │      cluster.go 
-│  │      server.go 
+│  ├─optimizedsharedpriorityqueue  
+│  │      cluster.go  
+│  │      server.go  
 │  │      
-│  ├─util 
-│  │      message.go 
-│  │      msg_priority_queue.go 
+│  ├─sharedpriorityqueue  
+│  │      cluster.go  
+│  │      server.go  
 │  │      
-│  └─voting 
-│          cluster.go 
-│          server.go 
+│  ├─util  
+│  │      message.go  
+│  │      msg_priority_queue.go  
+│  │      
+│  └─voting  
+│          cluster.go  
+│          server.go  
 
 ## Compilation and Execution
 
