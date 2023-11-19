@@ -52,7 +52,7 @@ func (s *Server) SetWaitGroup(group *sync.WaitGroup) {
 
 // onReceiveRequest handles the request message
 func (s *Server) onReceiveRequest(msg util2.Message) {
-	s.INCREMENT_CLOCK()
+	s.COMPARE_AND_INCREMENT_CLOCK(msg.ScalarClock)
 	logger.Logger.Printf("[Server %d] Received a vote request from server %d\n", s.Id, msg.SenderId)
 	if s.voteTo == nil {
 		// msg is the only request in the queue
@@ -71,7 +71,7 @@ func (s *Server) onReceiveRequest(msg util2.Message) {
 
 // onReceiveVote handles the vote message
 func (s *Server) onReceiveVote(msg util2.Message) {
-	s.INCREMENT_CLOCK()
+	s.COMPARE_AND_INCREMENT_CLOCK(msg.ScalarClock)
 	logger.Logger.Printf("[Server %d] Received a vote from server %d\n", s.Id, msg.SenderId)
 	if s.IsRequesting {
 		// check if the vote is rescinded
@@ -97,7 +97,7 @@ func (s *Server) onReceiveVote(msg util2.Message) {
 
 // onReceiveRescind handles the rescind vote message
 func (s *Server) onReceiveRescind(msg util2.Message) {
-	s.INCREMENT_CLOCK()
+	s.COMPARE_AND_INCREMENT_CLOCK(msg.ScalarClock)
 	logger.Logger.Printf("[Server %d] Received a rescind request from server %d\n", s.Id, msg.SenderId)
 
 	if !s.IsRequesting || s.IsExecuting {
@@ -117,7 +117,7 @@ func (s *Server) onReceiveRescind(msg util2.Message) {
 
 // onReceiveRelease handles the release vote message
 func (s *Server) onReceiveRelease(msg util2.Message, rescind bool) {
-	s.INCREMENT_CLOCK()
+	s.COMPARE_AND_INCREMENT_CLOCK(msg.ScalarClock)
 	logger.Logger.Printf("[Server %d] Received a release from server %d\n", s.Id, msg.SenderId)
 	if !rescind {
 		// received normal release message
@@ -262,6 +262,17 @@ func (s *Server) Listen() {
 			}
 		}
 	}
+}
+
+// COMPARE_AND_INCREMENT_CLOCK compares the incoming clock with the server's scalar clock and increment the scalar clock
+func (s *Server) COMPARE_AND_INCREMENT_CLOCK(incomingClock int) {
+	s.mu.Lock()
+	if s.ScalarClock >= incomingClock {
+		s.ScalarClock++
+	} else {
+		s.ScalarClock = incomingClock + 1
+	}
+	s.mu.Unlock()
 }
 
 // INCREMENT_CLOCK increase the scalar clock

@@ -44,7 +44,7 @@ func (s *Server) SetWaitGroup(group *sync.WaitGroup) {
 
 // onReceiveRequest handles the request message
 func (s *Server) onReceiveRequest(msg util2.Message) {
-	s.INCREMENT_CLOCK()
+	s.COMPARE_AND_INCREMENT_CLOCK(msg.ScalarClock)
 	logger.Logger.Printf("[Server %d] Received a request from server %d\n", s.Id, msg.SenderId)
 	if s.canReply(msg) {
 		// reply to the server
@@ -56,7 +56,7 @@ func (s *Server) onReceiveRequest(msg util2.Message) {
 
 // onReceiveReply handles the reply message
 func (s *Server) onReceiveReply(msg util2.Message) {
-	s.INCREMENT_CLOCK()
+	s.COMPARE_AND_INCREMENT_CLOCK(msg.ScalarClock)
 	logger.Logger.Printf("[Server %d] Received reply from %d\n", s.Id, msg.SenderId)
 	if s.pendingRequest != nil {
 		s.replyCount++
@@ -188,6 +188,17 @@ func (s *Server) INCREMENT_CLOCK() int {
 	newClock := s.ScalarClock
 	s.mu.Unlock()
 	return newClock
+}
+
+// COMPARE_AND_INCREMENT_CLOCK compares the incoming clock with the server's scalar clock and increment the scalar clock
+func (s *Server) COMPARE_AND_INCREMENT_CLOCK(incomingClock int) {
+	s.mu.Lock()
+	if s.ScalarClock >= incomingClock {
+		s.ScalarClock++
+	} else {
+		s.ScalarClock = incomingClock + 1
+	}
+	s.mu.Unlock()
 }
 
 // ResetRequest resets the pending request and reply count
