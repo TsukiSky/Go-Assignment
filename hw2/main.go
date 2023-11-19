@@ -13,7 +13,7 @@ import (
 const (
 	runningMode     = PERFORMANCE_COMPARING_MODE
 	algorithm       = OPTIMIZED_SHARED_PRIORITY_QUEUE
-	numOfServers    = 15
+	numOfServers    = 10
 	numOfRequesters = 10
 )
 
