@@ -24,6 +24,18 @@ func (c *CMPageRecord) ClearCopies() {
 	c.CopySet = c.CopySet[:0]
 }
 
+// Clone clones a page record
+func (c *CMPageRecord) Clone() CMPageRecord {
+	page := c.Page.Clone()
+	return CMPageRecord{
+		Page:           &page,
+		CopySet:        c.CopySet[:],
+		Owner:          c.Owner,
+		HasOwner:       c.HasOwner,
+		OwnerIsWriting: c.OwnerIsWriting,
+	}
+}
+
 // CMPageTable is the page table in the central manager
 type CMPageTable struct {
 	Records map[int]*CMPageRecord
@@ -45,6 +57,16 @@ func (c *CMPageTable) Init(numOfPage int) {
 			OwnerIsWriting: false,
 		}
 	}
+}
+
+// Clone clones a page table
+func (c *CMPageTable) Clone() CMPageTable {
+	records := map[int]*CMPageRecord{}
+	for k, v := range c.Records {
+		record := v.Clone()
+		records[k] = &record
+	}
+	return CMPageTable{Records: records}
 }
 
 // ProcessorPageRecord is a page record in a processor

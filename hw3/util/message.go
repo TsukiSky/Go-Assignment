@@ -6,6 +6,7 @@ type Message struct {
 	ProcessorId    int
 	Page           Page
 	IsWriteForward bool
+	Heartbeat      Heartbeat
 }
 
 type MessageType int
@@ -18,4 +19,6 @@ const (
 	INVALIDATE
 	WRITE_FORWARD
 	WRITE_ACK
+	HEARTBEAT
+	PRIMARY_DOWN
 )
