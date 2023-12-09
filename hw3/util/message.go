@@ -1,10 +1,11 @@
 package util
 
 type Message struct {
-	Type        MessageType
-	PageId      int
-	ProcessorId int
-	Page        Page
+	Type           MessageType
+	PageId         int
+	ProcessorId    int
+	Page           Page
+	IsWriteForward bool
 }
 
 type MessageType int
@@ -15,7 +16,6 @@ const (
 	PAGE
 	WRITE_REQUEST // write
 	INVALIDATE
-	INVALIDATE_ACK
 	WRITE_FORWARD
 	WRITE_ACK
 )
