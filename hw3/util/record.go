@@ -1,5 +1,7 @@
 package util
 
+import "sync"
+
 // Page is a page in the ivy system
 type Page struct {
 	Id int
@@ -17,11 +19,14 @@ type CMPageRecord struct {
 	Owner          int
 	HasOwner       bool
 	OwnerIsWriting bool
+	mu             sync.Mutex
 }
 
 // ClearCopies clears the copy set of a page
 func (c *CMPageRecord) ClearCopies() {
+	c.mu.Lock()
 	c.CopySet = c.CopySet[:0]
+	c.mu.Unlock()
 }
 
 // Clone clones a page record
@@ -78,6 +83,7 @@ type ProcessorPageRecord struct {
 // ProcessorPageTable is the page table in a processor
 type ProcessorPageTable struct {
 	Records map[int]*ProcessorPageRecord
+	mu      sync.Mutex
 }
 
 // FindPageById finds a page by its id
@@ -90,7 +96,9 @@ func (p *ProcessorPageTable) FindPageById(id int) *Page {
 
 // InvalidatePage invalidates a page in the page table
 func (p *ProcessorPageTable) InvalidatePage(id int) {
+	p.mu.Lock()
 	delete(p.Records, id)
+	p.mu.Unlock()
 }
 
 // Access is the access type owned by a processor for a page

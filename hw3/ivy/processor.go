@@ -4,6 +4,7 @@ import (
 	"homework/hw3/logger"
 	"homework/hw3/util"
 	"math/rand"
+	"sync"
 	"time"
 )
 
@@ -14,16 +15,23 @@ type Processor struct {
 	MessageChannel        chan util.Message
 	CentralManagerChannel chan util.Message
 	Connections           map[int]chan util.Message // map of processor id to their message channel
+	terminateReadNum      int
+	terminateWriteNum     int
+	terminated            bool
+	WaitGroup             *sync.WaitGroup
 }
 
 // NewProcessor creates a new processor
-func NewProcessor(id int, cmChannel chan util.Message) *Processor {
+func NewProcessor(id int, terminateReadNum int, terminateWriteNum int, cmChannel chan util.Message) *Processor {
 	return &Processor{
 		Id:                    id,
 		PageTable:             &util.ProcessorPageTable{Records: map[int]*util.ProcessorPageRecord{}},
 		MessageChannel:        make(chan util.Message),
 		CentralManagerChannel: cmChannel,
 		Connections:           map[int]chan util.Message{},
+		terminateReadNum:      terminateReadNum,
+		terminateWriteNum:     terminateWriteNum,
+		terminated:            false,
 	}
 }
 
@@ -54,9 +62,15 @@ func (p *Processor) ReadWithInterval(interval int, maxPageNumber int) {
 	for {
 		select {
 		case <-requestTimer.C:
-			pageId := rand.Intn(maxPageNumber)
-			p.Read(pageId)
-			requestTimer.Reset(time.Duration(interval) * time.Second)
+			if p.terminateReadNum > 0 {
+				p.terminateReadNum--
+				pageId := rand.Intn(maxPageNumber)
+				p.Read(pageId)
+				requestTimer.Reset(time.Duration(interval) * time.Second)
+			} else if p.terminateWriteNum <= 0 && !p.terminated {
+				p.terminated = true
+				p.WaitGroup.Done()
+			}
 		}
 	}
 }
@@ -67,9 +81,15 @@ func (p *Processor) WriteWithInterval(interval int, maxPageNumber int) {
 	for {
 		select {
 		case <-requestTimer.C:
-			pageId := rand.Intn(maxPageNumber)
-			p.Write(pageId)
-			requestTimer.Reset(time.Duration(interval) * time.Second)
+			if p.terminateWriteNum > 0 {
+				p.terminateWriteNum--
+				pageId := rand.Intn(maxPageNumber)
+				p.Write(pageId)
+				requestTimer.Reset(time.Duration(interval) * time.Second)
+			} else if p.terminateReadNum <= 0 && !p.terminated {
+				p.terminated = true
+				p.WaitGroup.Done()
+			}
 		}
 	}
 }
@@ -78,22 +98,26 @@ func (p *Processor) WriteWithInterval(interval int, maxPageNumber int) {
 func (p *Processor) onReceiveReadForward(message util.Message) {
 	toId := message.ProcessorId
 	pageId := message.PageId
-	page := *p.PageTable.FindPageById(pageId)
-	page = page.Clone()
-	go func() {
-		p.ForwardPage(page, toId, false)
-	}()
+	if p.PageTable.FindPageById(pageId) != nil {
+		page := *p.PageTable.FindPageById(pageId)
+		page = page.Clone()
+		go func() {
+			p.ForwardPage(page, toId, false)
+		}()
+	}
 }
 
 // onReceiveWriteForward is called when the processor receives a <WRITE-FORWARD, toId, pageId> from the central manager
 func (p *Processor) onReceiveWriteForward(message util.Message) {
 	toId := message.ProcessorId
 	pageId := message.PageId
-	page := *p.PageTable.FindPageById(pageId)
-	page = page.Clone()
-	go func() {
-		p.ForwardPageAndInvalidate(page, toId)
-	}()
+	if p.PageTable.FindPageById(pageId) != nil {
+		page := *p.PageTable.FindPageById(pageId)
+		page = page.Clone()
+		go func() {
+			p.ForwardPageAndInvalidate(page, toId)
+		}()
+	}
 }
 
 // ForwardPageAndInvalidate forwards a page to another processor and invalidate the page in the local page table
@@ -119,11 +143,13 @@ func (p *Processor) writing(pageId int) {
 	writingTimer := time.NewTimer(time.Duration(2) * time.Second)
 	defer writingTimer.Stop()
 	<-writingTimer.C
-	p.PageTable.Records[pageId].Access = util.READ
-	p.CentralManagerChannel <- util.Message{
-		Type:        util.WRITE_ACK,
-		PageId:      pageId,
-		ProcessorId: p.Id,
+	if p.PageTable.FindPageById(pageId) != nil {
+		p.PageTable.Records[pageId].Access = util.READ
+		p.CentralManagerChannel <- util.Message{
+			Type:        util.WRITE_ACK,
+			PageId:      pageId,
+			ProcessorId: p.Id,
+		}
 	}
 }
 
