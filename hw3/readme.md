@@ -105,15 +105,15 @@ To start the simulation, following these steps:
    // line 13 to line 23 in main.go
    	numOfProcessor         = 10
    	numOfPage              = 50
-   	readRequestInterval    = 2 // seconds
-   	writeRequestInterval   = 6 // seconds
+   	readRequestInterval    = 1 // seconds
+   	writeRequestInterval   = 3 // seconds
    	isFaulty               = false
    	syncInterval           = 2 // seconds
    	primaryDownTime        = 5 // seconds
    	primaryDownCount       = 1
    	primaryRestartInterval = 8
-   	terminateReadNum       = 15
-   	terminateWriteNum      = 5
+   	terminateReadNum       = 16
+   	terminateWriteNum      = 4
    ``````
 
 ### Additional Information
@@ -146,6 +146,8 @@ primaryRestartInterval = 8 // seconds
 
 1. **No Fault Ivy Execution Times**
 
+   Set `isFaulty` on line 17 to `false`, and adjust the value of `terminateReadNum` (line 22) and `terminateWriteNum` (line 23) to conduct this experiment.
+
    | Total Number of Requests | Write/Read Ratio | Total Time Used |
    | ------------------------ | ---------------- | --------------- |
    | 200                      | 1/2              | 18.098 s        |
@@ -155,6 +157,8 @@ primaryRestartInterval = 8 // seconds
    It is apparently that as the number of write requests decreases, the overall execution time becomes shorter.
 
 2. **Fault-tolerant Ivy Execution Times**
+
+   Set `isFaulty` on line 17 to `true`, and adjust the value of `terminateReadNum` (line 22) and `terminateWriteNum` (line 23) to conduct this experiment.
 
    | Total Number of Requests | Write/Read Ratio | Total Time Used |
    | ------------------------ | ---------------- | --------------- |
@@ -166,6 +170,8 @@ primaryRestartInterval = 8 // seconds
 
 3. **Fault-tolerant Ivy & The PM Fails Once**
 
+   You can adjust the `terminateReadNum` and `terminateWriteNum` on line 22 and line 23 to conduct this experiment.
+
    | Total Number of Requests | Write/Read Ratio | Total Time Used |
    | ------------------------ | ---------------- | --------------- |
    | 200                      | 1/2              | 24.117 s        |
@@ -176,12 +182,13 @@ primaryRestartInterval = 8 // seconds
 
 4. **Fault-tolerant Ivy & The PM Fails Multiple Times**
 
+   You can adjust the `primaryFailCount` parameter on line 20 to conduct this experiment.
+
    | Total Number of Requests | Write/Read Ratio | PM Fail Counts | Total Time Used |
    | ------------------------ | ---------------- | -------------- | --------------- |
    | 200                      | 1/4              | 1              | 16.114 s        |
    | 200                      | 1/4              | 2              | 17.164 s        |
    | 200                      | 1/4              | 3              | 17.166 s        |
-   | 200                      | 1/4              | 4              | 17.117 s        |
 
    This experiment result indicates that the main factor of execution speed is the write/read ratio. The fail of PM only cost a little overhead in the execution.
 
