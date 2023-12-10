@@ -16,6 +16,7 @@ type CentralManager struct {
 	WritingRequestMap    map[int][]util.Message    // map of page id to write request
 	IsPrimary            bool
 	Downtime             int
+	Type                 string
 }
 
 // NewPrimaryCentralManager creates a new central manager
@@ -28,6 +29,7 @@ func NewPrimaryCentralManager(primaryDownTime int) *CentralManager {
 		WritingRequestMap: map[int][]util.Message{},
 		IsPrimary:         true,
 		Downtime:          primaryDownTime,
+		Type:              "Primary",
 	}
 }
 
@@ -40,6 +42,7 @@ func NewBackupCentralManager() *CentralManager {
 		Connections:       map[int]chan util.Message{},
 		WritingRequestMap: map[int][]util.Message{},
 		IsPrimary:         false,
+		Type:              "Backup",
 	}
 }
 
@@ -101,13 +104,11 @@ func (c *CentralManager) onReceiveWriteAck(message util.Message) {
 // handleWriteForward handles the write forward action when it is decided that the page should be <Write Forward>
 func (c *CentralManager) handleWriteForward(pageId int, processorId int) {
 	// send out write forward
-	go func() {
-		c.Connections[c.PageTable.Records[pageId].Owner] <- util.Message{
-			Type:        util.WRITE_FORWARD,
-			PageId:      pageId,
-			ProcessorId: processorId,
-		}
-	}()
+	c.Connections[c.PageTable.Records[pageId].Owner] <- util.Message{
+		Type:        util.WRITE_FORWARD,
+		PageId:      pageId,
+		ProcessorId: processorId,
+	}
 
 	c.PageTable.Records[pageId].Owner = processorId
 	c.PageTable.Records[pageId].OwnerIsWriting = true
@@ -152,10 +153,11 @@ func (c *CentralManager) Register(processor *Processor) {
 // Activate activates the central manager
 func (c *CentralManager) Activate(heartbeatInterval int) {
 	if c.IsPrimary {
-		logger.Logger.Printf("[Central Manager] Central Manager activated\n")
-		downTimer := time.NewTimer(time.Duration(c.Downtime) * time.Second)
-		go c.listenAsPrimary(downTimer)
-		go c.SendHeartbeatWithInterval(heartbeatInterval, downTimer)
+		logger.Logger.Printf("[Primary Central Manager] Central Manager activated\n")
+		downTimerForHeartbeat := time.NewTimer(time.Duration(c.Downtime) * time.Second)
+		downTimerForListening := time.NewTimer(time.Duration(c.Downtime) * time.Second)
+		go c.listenAsPrimary(downTimerForListening)
+		go c.SendHeartbeatWithInterval(heartbeatInterval, downTimerForHeartbeat)
 	} else {
 		logger.Logger.Printf("[Backup Central Manager] Backup Central Manager activated\n")
 		go c.listenAsBackup(heartbeatInterval)
@@ -187,6 +189,7 @@ func (c *CentralManager) SendHeartbeatWithInterval(interval int, downTimer *time
 	for {
 		select {
 		case <-heartbeatSendingTimer.C:
+			logger.Logger.Printf("[Primary Central Manager] Send <<<Heartbeat>>> to Backup Central Manager\n")
 			c.SendHeartbeat()
 			heartbeatSendingTimer.Reset(time.Duration(interval) * time.Second)
 		case <-downTimer.C:
@@ -212,18 +215,18 @@ func (c *CentralManager) listenAsPrimary(downTimer *time.Timer) {
 			select {
 			case <-downTimer.C:
 				// primary central manager is down
-				logger.Logger.Printf("[Primary Central Manager] Primary Central Manager is DOWN, Self-promote to Central Manager\n")
-				return
+				logger.Logger.Printf("[Primary Central Manager] Primary is DOWN\n")
+				//return
 			case message := <-c.MessageChannel:
 				switch message.Type {
 				case util.READ_REQUEST:
-					logger.Logger.Printf("[Central Manager] Receive <<<Read Request>>> for Page %d from Processor %d\n", message.PageId, message.ProcessorId)
+					logger.Logger.Printf("[%s Central Manager] Receive <<<Read Request>>> for Page %d from Processor %d\n", c.Type, message.PageId, message.ProcessorId)
 					c.onReceiveReadReq(message)
 				case util.WRITE_REQUEST:
-					logger.Logger.Printf("[Central Manager] Receive <<<Write Request>>> for Page %d from Processor %d\n", message.PageId, message.ProcessorId)
+					logger.Logger.Printf("[%s Central Manager] Receive <<<Write Request>>> for Page %d from Processor %d\n", c.Type, message.PageId, message.ProcessorId)
 					c.onReceiveWriteReq(message)
 				case util.WRITE_ACK:
-					logger.Logger.Printf("[Central Manager] Receive <<<Write Ack>>> for Page %d from Processor %d\n", message.PageId, message.ProcessorId)
+					logger.Logger.Printf("[%s Central Manager] Receive <<<Write Ack>>> for Page %d from Processor %d\n", c.Type, message.PageId, message.ProcessorId)
 					c.onReceiveWriteAck(message)
 				}
 			}
@@ -233,13 +236,13 @@ func (c *CentralManager) listenAsPrimary(downTimer *time.Timer) {
 			message := <-c.MessageChannel
 			switch message.Type {
 			case util.READ_REQUEST:
-				logger.Logger.Printf("[Central Manager] Receive <<<Read Request>>> for Page %d from Processor %d\n", message.PageId, message.ProcessorId)
+				logger.Logger.Printf("[%s Central Manager] Receive <<<Read Request>>> for Page %d from Processor %d\n", c.Type, message.PageId, message.ProcessorId)
 				c.onReceiveReadReq(message)
 			case util.WRITE_REQUEST:
-				logger.Logger.Printf("[Central Manager] Receive <<<Write Request>>> for Page %d from Processor %d\n", message.PageId, message.ProcessorId)
+				logger.Logger.Printf("[%s Central Manager] Receive <<<Write Request>>> for Page %d from Processor %d\n", c.Type, message.PageId, message.ProcessorId)
 				c.onReceiveWriteReq(message)
 			case util.WRITE_ACK:
-				logger.Logger.Printf("[Central Manager] Receive <<<Write Ack>>> for Page %d from Processor %d\n", message.PageId, message.ProcessorId)
+				logger.Logger.Printf("[%s Central Manager] Receive <<<Write Ack>>> for Page %d from Processor %d\n", c.Type, message.PageId, message.ProcessorId)
 				c.onReceiveWriteAck(message)
 			}
 		}
@@ -268,8 +271,8 @@ func (c *CentralManager) listenAsBackup(heartbeatInterval int) {
 		select {
 		case <-heartbeatCheckingTimer.C:
 			// no heartbeat received, the primary central manager is down
-			logger.Logger.Printf("[Backup Central Manager] Primary Central Manager is down\n")
-			// promote the backup central manager to primary central manager\
+			// promote the backup central manager to primary central manager
+			logger.Logger.Printf("[Backup Central Manager] Primary Central Manager is down, promote Backup Central Manager to Primary Central Manager\n")
 			c.PromoteToPrimary()
 			return
 		case message := <-c.MessageChannel:

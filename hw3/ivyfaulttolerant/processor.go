@@ -117,6 +117,7 @@ func (p *Processor) ForwardPage(page util.Page, toProcessorId int, isWriteForwar
 
 // writing simulates the writing time
 func (p *Processor) writing(pageId int) {
+	logger.Logger.Printf("[Processor %d] -- Start <<<Writing>>> Page %d\n", p.Id, pageId)
 	// This function is used to simulate the writing time
 	writingTimer := time.NewTimer(time.Duration(2) * time.Second)
 	defer writingTimer.Stop()
@@ -200,9 +201,6 @@ func (p *Processor) listen() {
 			case util.INVALIDATE:
 				logger.Logger.Printf("[Processor %d] -- Receive <<<Invalidate>>> Page %d\n", p.Id, message.PageId)
 				p.onReceiveInvalidate(message)
-			}
-		case message := <-p.BackupCentralManagerChannel:
-			switch message.Type {
 			case util.PRIMARY_DOWN:
 				logger.Logger.Printf("[Processor %d] -- Receive <<<Primary Down>>>\n", p.Id)
 				p.CentralManagerChannel = p.BackupCentralManagerChannel
